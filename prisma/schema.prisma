@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  project_manager
+  safety_officer
+  viewer
+}
+
+enum CameraStatus {
+  online
+  offline
+  maintenance
+}
+
+enum IncidentType {
+  ppe_violation
+  fall_risk
+  restricted_zone_entry
+  machinery_hazard
+  near_miss
+}
+
+enum IncidentRiskLevel {
+  low
+  medium
+  high
+  critical
+}
+
+enum IncidentStatus {
+  open
+  acknowledged
+  resolved
+}
+
+enum IncidentAction {
+  created
+  assigned
+  acknowledged
+  resolved
+  updated
+}
+
+model User {
+  id             String        @id @default(cuid())
+  name           String
+  email          String        @unique
+  hashedPassword String        @map("hashed_password")
+  role           Role          @default(viewer)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  assignedIncidents Incident[]   @relation("IncidentAssignee")
+  incidentLogs      IncidentLog[]
+
+  @@map("users")
+}
+
+model Project {
+  id        String    @id @default(cuid())
+  name      String
+  location  String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  cameras      Camera[]
+  zones        Zone[]
+  incidents    Incident[]
+  dailyMetrics DailyMetric[]
+
+  @@map("projects")
+}
+
+model Camera {
+  id        String       @id @default(cuid())
+  name      String
+  projectId String       @map("project_id")
+  zoneId    String?      @map("zone_id")
+  status    CameraStatus @default(online)
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  zone      Zone?     @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  incidents Incident[]
+
+  @@map("cameras")
+}
+
+model Zone {
+  id        String            @id @default(cuid())
+  projectId String            @map("project_id")
+  name      String
+  riskLevel IncidentRiskLevel @map("risk_level")
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  cameras   Camera[]
+  incidents Incident[]
+
+  @@map("zones")
+}
+
+model Incident {
+  id             String            @id @default(cuid())
+  projectId      String            @map("project_id")
+  cameraId       String            @map("camera_id")
+  zoneId         String            @map("zone_id")
+  type           IncidentType
+  riskLevel      IncidentRiskLevel @map("risk_level")
+  status         IncidentStatus    @default(open)
+  detectedAt     DateTime          @default(now()) @map("detected_at")
+  acknowledgedAt DateTime?         @map("acknowledged_at")
+  resolvedAt     DateTime?         @map("resolved_at")
+  assignedTo     String?           @map("assigned_to")
+
+  project  Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  camera   Camera       @relation(fields: [cameraId], references: [id], onDelete: Cascade)
+  zone     Zone         @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  assignee User?        @relation("IncidentAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  logs     IncidentLog[]
+
+  @@index([projectId])
+  @@index([status])
+  @@map("incidents")
+}
+
+model IncidentLog {
+  id         String         @id @default(cuid())
+  incidentId String         @map("incident_id")
+  userId     String         @map("user_id")
+  action     IncidentAction
+  timestamp  DateTime       @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("incident_logs")
+}
+
+model DailyMetric {
+  projectId         String   @map("project_id")
+  date              DateTime
+  totalIncidents    Int      @default(0) @map("total_incidents")
+  avgResponseTime   Float    @default(0) @map("avg_response_time")
+  ppeComplianceRate Float    @default(0) @map("ppe_compliance_rate")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, date])
+  @@map("daily_metrics")
+}
