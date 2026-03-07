@@ -299,13 +299,18 @@ The Settings page provides access to system-level configuration including:
 
 ### Incident Types
 
-| Type | Description |
-|---|---|
-| `ppe_violation` | Worker detected without required personal protective equipment (helmet, vest, etc.) |
-| `fall_risk` | Worker detected in a position or area with elevated fall hazard |
-| `restricted_zone_entry` | Unauthorised entry into a restricted or exclusion zone |
-| `machinery_hazard` | Worker detected too close to operating heavy machinery |
-| `near_miss` | A close call event that did not result in injury but required logging |
+| Type | Category | Description |
+|---|---|---|
+| `ppe_violation` | Safety | Worker detected without required personal protective equipment (helmet, vest, etc.) |
+| `fall_risk` | Safety | Worker detected in a position or area with elevated fall hazard |
+| `restricted_zone_entry` | Safety | Unauthorised entry into a restricted or exclusion zone |
+| `machinery_hazard` | Safety | Worker detected too close to operating heavy machinery |
+| `near_miss` | Safety | A close call event that did not result in injury but required logging |
+| `smoking` | Fire & Smoke | Person detected smoking on site — immediate fire risk and site policy violation |
+| `fire_detected` | Fire & Smoke | Active fire detected by camera AI — highest priority, evacuate and contact emergency services |
+| `smoke_detected` | Fire & Smoke | Smoke detected without visible flame — may indicate an early-stage or concealed fire |
+
+> **Fire & Smoke incidents** (`smoking`, `fire_detected`, `smoke_detected`) should always be assigned a risk level of `high` or `critical` and acknowledged immediately.
 
 ### Risk Levels
 

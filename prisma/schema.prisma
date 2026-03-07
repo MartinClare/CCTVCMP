@@ -26,6 +26,9 @@ enum IncidentType {
   restricted_zone_entry
   machinery_hazard
   near_miss
+  smoking
+  fire_detected
+  smoke_detected
 }
 
 enum IncidentRiskLevel {
