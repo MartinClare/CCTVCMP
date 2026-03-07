@@ -42,6 +42,8 @@ enum IncidentStatus {
   open
   acknowledged
   resolved
+  dismissed
+  record_only
 }
 
 enum IncidentAction {

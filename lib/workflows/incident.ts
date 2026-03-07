@@ -5,6 +5,8 @@ export function nextStatus(current: IncidentStatus, target: IncidentStatus) {
     open: ["acknowledged"],
     acknowledged: ["resolved"],
     resolved: [],
+    dismissed: [],
+    record_only: [],
   };
   if (current === target) return true;
   return transitions[current].includes(target);

@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export function IncidentActions({ incidentId, currentStatus }: { incidentId: string; currentStatus: "open" | "acknowledged" | "resolved" }) {
+import { IncidentStatus } from "@prisma/client";
+
+export function IncidentActions({ incidentId, currentStatus }: { incidentId: string; currentStatus: IncidentStatus }) {
   const [pending, setPending] = useState(false);
   const nextStatus = currentStatus === "open" ? "acknowledged" : currentStatus === "acknowledged" ? "resolved" : null;
 
