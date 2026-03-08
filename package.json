@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "next dev -p 3002",
+    "build": "prisma migrate deploy && next build",
+    "start": "next start -p 3002",
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -17,6 +17,8 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@prisma/adapter-neon": "^7.4.2",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
@@ -25,16 +27,19 @@
     "jose": "^6.1.3",
     "lucide-react": "^0.575.0",
     "next": "14.2.32",
+    "nodemailer": "^6.10.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.5.0",
+    "ws": "^8.19.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^20.17.5",
+    "@types/nodemailer": "^6.4.23",
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",
     "@vitest/coverage-v8": "^4.0.18",

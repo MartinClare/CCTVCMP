@@ -107,7 +107,10 @@ cp .env.example .env
 ```env
 DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
 JWT_SECRET="a-long-random-secret-minimum-32-characters"
+EDGE_API_KEY="your-secret-key"
 ```
+
+- **EDGE_API_KEY** — Used to authenticate edge devices sending Deep Vision results to `POST /api/webhook/edge-report`. Set the same value as `centralServer.apiKey` in the edge `app.config.json`.
 
 > **Neon users:** Use the pooled connection string (hostname contains `-pooler`). Remove `&channel_binding=require` from the URL — Prisma does not support it.
 
@@ -123,6 +126,22 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) — redirects to `/dashboard`.
+
+### Local test with Neon (same DB as production)
+
+To run CMP locally but use your **online Neon** database (e.g. to test before deploying to Vercel):
+
+1. In `CCTVCMP/.env`, set `DATABASE_URL` to your Neon **pooled** connection string (hostname contains `-pooler`). Do not include `&channel_binding=require`. Set `JWT_SECRET` and `EDGE_API_KEY` as well.
+2. From the `CCTVCMP` folder, apply migrations and seed:
+   ```bash
+   npm install
+   npx prisma migrate deploy
+   npm run prisma:seed
+   npm run dev
+   ```
+3. Open [http://localhost:3000](http://localhost:3000) (or the port shown). Use the seeded demo accounts to sign in.
+
+You are now running the app locally against the same Neon database you can use in production. Changes (users, incidents, etc.) persist in Neon.
 
 ### Demo accounts (seeded)
 
@@ -169,6 +188,12 @@ Open [http://localhost:3000](http://localhost:3000) — redirects to `/dashboard
 | GET | `/api/incidents/[id]` | Get single incident with logs |
 | PATCH | `/api/incidents/[id]` | Update status or assignee |
 
+### Edge webhook (machine-to-machine)
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/webhook/edge-report` | `X-API-Key` header | Ingest Deep Vision results from edge; creates cameras by `edgeCameraId` and incidents by classification. No JWT. |
+
 ### Other
 
 | Method | Endpoint | Description |
@@ -193,14 +218,16 @@ Open [http://localhost:3000](http://localhost:3000) — redirects to `/dashboard
 
 ## Deploying to Vercel
 
-1. Push this repository to GitHub
-2. Import the project in [Vercel](https://vercel.com)
-3. Add environment variables in Vercel project settings:
-   - `DATABASE_URL`
-   - `JWT_SECRET`
-4. Deploy — Vercel auto-runs `npm run build`
+1. Push the repository to GitHub (this app lives in the **vd2** repo under the `CCTVCMP` folder).
+2. In [Vercel](https://vercel.com), import the project and connect the **vd2** repo.
+3. Set **Root Directory** to **`CCTVCMP`** (Project Settings → General). Vercel will run `npm install` and `npm run build` from that directory.
+4. Add **Environment Variables** (Project Settings → Environment Variables) for Production (and Preview if desired):
+   - **`DATABASE_URL`** — Neon **pooled** connection string (hostname must contain `-pooler`). Do not include `&channel_binding=require`; Prisma does not support it.
+   - **`JWT_SECRET`** — Strong random secret for signing JWTs (e.g. 32+ characters).
+   - **`EDGE_API_KEY`** — Same value as `centralServer.apiKey` in the edge `app.config.json`; used to authenticate webhook requests to `POST /api/webhook/edge-report`.
+5. Deploy. Each deploy runs `prisma migrate deploy` then `next build`, so the Neon database stays in sync with the Prisma migrations.
 
-> Prisma client is generated automatically via the `postinstall` script.
+Prisma client is generated in `postinstall`. For production demo users (e.g. admin/safety), run `npm run prisma:seed` once against the production `DATABASE_URL` (e.g. locally with `DATABASE_URL="..." npm run prisma:seed` or via a one-off script).
 
 ---
 

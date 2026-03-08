@@ -12,6 +12,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/api/webhook")) {
+    return NextResponse.next();
+  }
+
   const required = getRequiredRoles(pathname);
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
@@ -42,6 +46,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
+    "/edge-devices/:path*",
     "/live/:path*",
     "/incidents/:path*",
     "/analytics/:path*",

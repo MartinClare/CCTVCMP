@@ -52,6 +52,14 @@ enum IncidentAction {
   acknowledged
   resolved
   updated
+  dismissed
+  note_added
+}
+
+enum ChannelType {
+  email
+  webhook
+  dashboard
 }
 
 model User {
@@ -85,16 +93,19 @@ model Project {
 }
 
 model Camera {
-  id        String       @id @default(cuid())
-  name      String
-  projectId String       @map("project_id")
-  zoneId    String?      @map("zone_id")
-  status    CameraStatus @default(online)
-  createdAt DateTime     @default(now()) @map("created_at")
+  id            String       @id @default(cuid())
+  name          String
+  edgeCameraId  String?      @unique @map("edge_camera_id")
+  projectId     String       @map("project_id")
+  zoneId        String?      @map("zone_id")
+  status        CameraStatus @default(online)
+  lastReportAt  DateTime?    @map("last_report_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
 
-  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  zone      Zone?     @relation(fields: [zoneId], references: [id], onDelete: SetNull)
-  incidents Incident[]
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  zone        Zone?        @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  incidents   Incident[]
+  edgeReports EdgeReport[]
 
   @@map("cameras")
 }
@@ -120,19 +131,25 @@ model Incident {
   type           IncidentType
   riskLevel      IncidentRiskLevel @map("risk_level")
   status         IncidentStatus    @default(open)
+  recordOnly     Boolean           @default(false) @map("record_only")
+  notes          String?
+  reasoning      String?
   detectedAt     DateTime          @default(now()) @map("detected_at")
   acknowledgedAt DateTime?         @map("acknowledged_at")
   resolvedAt     DateTime?         @map("resolved_at")
+  dismissedAt    DateTime?         @map("dismissed_at")
   assignedTo     String?           @map("assigned_to")
 
-  project  Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  camera   Camera       @relation(fields: [cameraId], references: [id], onDelete: Cascade)
-  zone     Zone         @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-  assignee User?        @relation("IncidentAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
-  logs     IncidentLog[]
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  camera           Camera            @relation(fields: [cameraId], references: [id], onDelete: Cascade)
+  zone             Zone              @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  assignee         User?             @relation("IncidentAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  logs             IncidentLog[]
+  notificationLogs NotificationLog[]
 
   @@index([projectId])
   @@index([status])
+  @@index([cameraId, type, detectedAt])
   @@map("incidents")
 }
 
@@ -160,4 +177,74 @@ model DailyMetric {
 
   @@id([projectId, date])
   @@map("daily_metrics")
+}
+
+model EdgeReport {
+  id                 String   @id @default(cuid())
+  cameraId           String   @map("camera_id")
+  edgeCameraId       String   @map("edge_camera_id")
+  cameraName         String   @map("camera_name")
+  overallRiskLevel   String   @map("overall_risk_level")
+  overallDescription String   @map("overall_description")
+  peopleCount        Int?     @map("people_count")
+  missingHardhats    Int?     @map("missing_hardhats")
+  missingVests       Int?     @map("missing_vests")
+  rawJson            Json     @map("raw_json")
+  classificationJson Json?    @map("classification_json")
+  receivedAt         DateTime @default(now()) @map("received_at")
+
+  camera Camera @relation(fields: [cameraId], references: [id], onDelete: Cascade)
+
+  @@index([cameraId])
+  @@index([receivedAt])
+  @@index([cameraId, receivedAt])
+  @@map("edge_reports")
+}
+
+model AlarmRule {
+  id              String            @id @default(cuid())
+  name            String
+  incidentType    IncidentType      @map("incident_type")
+  minRiskLevel    IncidentRiskLevel @default(low) @map("min_risk_level")
+  minConfidence   Float             @default(0.7) @map("min_confidence")
+  consecutiveHits Int               @default(1) @map("consecutive_hits")
+  dedupMinutes    Int               @default(5) @map("dedup_minutes")
+  enabled         Boolean           @default(true)
+  recordOnly      Boolean           @default(false) @map("record_only")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  @@unique([incidentType])
+  @@map("alarm_rules")
+}
+
+model NotificationChannel {
+  id           String            @id @default(cuid())
+  name         String
+  type         ChannelType
+  config       Json              @default("{}")
+  minRiskLevel IncidentRiskLevel @default(low) @map("min_risk_level")
+  enabled      Boolean           @default(true)
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  logs NotificationLog[]
+
+  @@map("notification_channels")
+}
+
+model NotificationLog {
+  id         String   @id @default(cuid())
+  channelId  String   @map("channel_id")
+  incidentId String   @map("incident_id")
+  status     String
+  sentAt     DateTime @default(now()) @map("sent_at")
+  error      String?
+
+  channel  NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  incident Incident            @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([incidentId])
+  @@map("notification_logs")
 }

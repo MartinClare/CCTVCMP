@@ -1,7 +1,12 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
 import { IncidentRiskLevel, IncidentStatus } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { IncidentActions } from "@/components/incidents/incident-actions";
 
 type IncidentRow = {
@@ -9,6 +14,8 @@ type IncidentRow = {
   type: string;
   riskLevel: IncidentRiskLevel;
   status: IncidentStatus;
+  recordOnly: boolean;
+  reasoning: string | null;
   detectedAt: Date;
   project: { name: string };
   zone: { name: string };
@@ -22,30 +29,105 @@ function riskVariant(level: IncidentRiskLevel): "default" | "secondary" | "destr
   return "secondary";
 }
 
+function statusColor(status: IncidentStatus): string {
+  switch (status) {
+    case "open": return "text-red-400";
+    case "acknowledged": return "text-yellow-400";
+    case "resolved": return "text-green-400";
+    case "dismissed": return "text-gray-400";
+    case "record_only": return "text-blue-400";
+    default: return "";
+  }
+}
+
+const FILTERS: Array<{ label: string; value: IncidentStatus | "all" }> = [
+  { label: "All", value: "all" },
+  { label: "Open", value: "open" },
+  { label: "Acknowledged", value: "acknowledged" },
+  { label: "Resolved", value: "resolved" },
+  { label: "Dismissed", value: "dismissed" },
+  { label: "Record Only", value: "record_only" },
+];
+
 export function IncidentTable({ incidents }: { incidents: IncidentRow[] }) {
+  const [filter, setFilter] = useState<IncidentStatus | "all">("all");
+
+  const filtered = filter === "all" ? incidents : incidents.filter((i) => i.status === filter);
+
   return (
     <Card>
-      <CardHeader><CardTitle>Incident Tracking</CardTitle></CardHeader>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Incident Tracking</CardTitle>
+          <div className="flex gap-1">
+            {FILTERS.map((f) => (
+              <Button
+                key={f.value}
+                size="sm"
+                variant={filter === f.value ? "default" : "outline"}
+                onClick={() => setFilter(f.value)}
+              >
+                {f.label}
+                {f.value !== "all" && (
+                  <span className="ml-1 text-xs opacity-60">
+                    ({incidents.filter((i) => i.status === f.value).length})
+                  </span>
+                )}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead><TableHead>Type</TableHead><TableHead>Risk</TableHead><TableHead>Status</TableHead><TableHead>Project</TableHead><TableHead>Zone</TableHead><TableHead>Camera</TableHead><TableHead>Assigned To</TableHead><TableHead>Detected</TableHead><TableHead>Action</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Risk</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Camera</TableHead>
+              <TableHead>Zone</TableHead>
+              <TableHead>Detected</TableHead>
+              <TableHead>Assigned</TableHead>
+              <TableHead>Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {incidents.map((incident) => (
-              <TableRow key={incident.id}>
-                <TableCell className="font-mono text-xs">{incident.id}</TableCell>
-                <TableCell>{incident.type.replaceAll("_", " ")}</TableCell>
-                <TableCell><Badge variant={riskVariant(incident.riskLevel)}>{incident.riskLevel}</Badge></TableCell>
-                <TableCell>{incident.status}</TableCell>
-                <TableCell>{incident.project.name}</TableCell>
-                <TableCell>{incident.zone.name}</TableCell>
+            {filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                  No incidents found
+                </TableCell>
+              </TableRow>
+            )}
+            {filtered.map((incident) => (
+              <TableRow key={incident.id} className="hover:bg-muted/50">
+                <TableCell>
+                  <Link
+                    href={`/incidents/${incident.id}`}
+                    className="flex items-center gap-2 hover:underline focus:outline-none"
+                  >
+                    <span>{incident.type.replaceAll("_", " ")}</span>
+                    {incident.recordOnly && (
+                      <Badge variant="secondary" className="text-xs">record</Badge>
+                    )}
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={riskVariant(incident.riskLevel)}>{incident.riskLevel}</Badge>
+                </TableCell>
+                <TableCell>
+                  <span className={statusColor(incident.status)}>
+                    {incident.status.replace("_", " ")}
+                  </span>
+                </TableCell>
                 <TableCell>{incident.camera.name}</TableCell>
-                <TableCell>{incident.assignee?.name ?? "Unassigned"}</TableCell>
-                <TableCell>{incident.detectedAt.toLocaleString()}</TableCell>
-                <TableCell><IncidentActions incidentId={incident.id} currentStatus={incident.status} /></TableCell>
+                <TableCell>{incident.zone.name}</TableCell>
+                <TableCell className="text-xs">{new Date(incident.detectedAt).toLocaleString()}</TableCell>
+                <TableCell>{incident.assignee?.name ?? "—"}</TableCell>
+                <TableCell>
+                  <IncidentActions incidentId={incident.id} currentStatus={incident.status} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

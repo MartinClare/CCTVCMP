@@ -1,8 +1,34 @@
 import { prisma } from "@/lib/prisma";
 import { IncidentTable } from "@/components/incidents/incident-table";
+import { AutoRefresh } from "@/components/auto-refresh";
+import type { IncidentStatus, IncidentRiskLevel } from "@prisma/client";
 
-export default async function IncidentsPage() {
+const VALID_STATUSES: IncidentStatus[] = ["open", "acknowledged", "resolved", "dismissed", "record_only"];
+const VALID_RISKS: IncidentRiskLevel[] = ["low", "medium", "high", "critical"];
+
+export default async function IncidentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+
+  const statusParam = typeof params.status === "string" ? params.status : undefined;
+  const riskParam = typeof params.riskLevel === "string" ? params.riskLevel : undefined;
+
+  const statusFilter = statusParam
+    ?.split(",")
+    .filter((s): s is IncidentStatus => VALID_STATUSES.includes(s as IncidentStatus));
+
+  const riskFilter = riskParam
+    ?.split(",")
+    .filter((r): r is IncidentRiskLevel => VALID_RISKS.includes(r as IncidentRiskLevel));
+
   const incidents = await prisma.incident.findMany({
+    where: {
+      ...(statusFilter?.length ? { status: { in: statusFilter } } : {}),
+      ...(riskFilter?.length ? { riskLevel: { in: riskFilter } } : {}),
+    },
     include: {
       project: { select: { name: true } },
       zone: { select: { name: true } },
@@ -12,9 +38,30 @@ export default async function IncidentsPage() {
     orderBy: { detectedAt: "desc" },
   });
 
+  const filterLabel = [
+    statusFilter?.length ? `Status: ${statusFilter.join(", ")}` : null,
+    riskFilter?.length ? `Risk: ${riskFilter.join(", ")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-semibold">Incident Management</h2>
+      <AutoRefresh intervalSec={10} />
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold">Incident Management</h2>
+          {filterLabel && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Filtered by: <span className="font-medium text-foreground">{filterLabel}</span>
+              &nbsp;·&nbsp;
+              <a href="/incidents" className="text-primary hover:underline">
+                Clear filter
+              </a>
+            </p>
+          )}
+        </div>
+      </div>
       <IncidentTable incidents={incidents} />
     </div>
   );

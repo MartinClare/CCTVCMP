@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Camera, FileText, LayoutDashboard, ShieldAlert, Settings } from "lucide-react";
+import { BarChart3, Camera, FileText, LayoutDashboard, Radio, ShieldAlert, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/live", label: "Live Monitoring", icon: Camera },
+  { href: "/edge-devices", label: "Edge Devices", icon: Radio },
   { href: "/incidents", label: "Incidents", icon: ShieldAlert },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/reports", label: "Reports", icon: FileText },

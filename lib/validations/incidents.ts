@@ -13,4 +13,5 @@ export const createIncidentSchema = z.object({
 export const updateIncidentSchema = z.object({
   status: z.nativeEnum(IncidentStatus).optional(),
   assignedTo: z.string().nullable().optional(),
+  notes: z.string().optional(),
 });

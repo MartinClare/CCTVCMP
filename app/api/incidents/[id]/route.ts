@@ -16,6 +16,10 @@ export async function GET(request: NextRequest, context: { params: { id: string 
       zone: true,
       assignee: true,
       logs: { include: { user: { select: { id: true, name: true, email: true } } }, orderBy: { timestamp: "desc" } },
+      notificationLogs: {
+        include: { channel: { select: { name: true, type: true } } },
+        orderBy: { sentAt: "desc" },
+      },
     },
   });
 
@@ -40,17 +44,29 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
 
   const updateData: Record<string, unknown> = {};
   if (typeof parsed.data.assignedTo !== "undefined") updateData.assignedTo = parsed.data.assignedTo;
+
   if (parsed.data.status) {
     updateData.status = parsed.data.status;
     if (parsed.data.status === "acknowledged") updateData.acknowledgedAt = new Date();
     if (parsed.data.status === "resolved") updateData.resolvedAt = new Date();
+    if (parsed.data.status === "dismissed") updateData.dismissedAt = new Date();
   }
+
+  if (parsed.data.notes !== undefined) {
+    updateData.notes = parsed.data.notes;
+  }
+
+  const logAction = parsed.data.status
+    ? mapStatusToAction(parsed.data.status)
+    : parsed.data.notes !== undefined
+    ? "note_added"
+    : "updated";
 
   const incident = await prisma.incident.update({
     where: { id: current.id },
     data: {
       ...updateData,
-      logs: { create: { userId: user.id, action: parsed.data.status ? mapStatusToAction(parsed.data.status) : "updated" } },
+      logs: { create: { userId: user.id, action: logAction } },
     },
     include: {
       project: { select: { id: true, name: true } },
