@@ -106,9 +106,9 @@ export async function POST(request: NextRequest) {
       cameraName,
       overallRiskLevel: analysis.overallRiskLevel,
       overallDescription: analysis.overallDescription,
-      peopleCount: analysis.peopleCount,
-      missingHardhats: analysis.missingHardhats,
-      missingVests: analysis.missingVests,
+      peopleCount: analysis.peopleCount ?? null,
+      missingHardhats: analysis.missingHardhats ?? null,
+      missingVests: analysis.missingVests ?? null,
       rawJson: fullPayload as object,
     },
   });

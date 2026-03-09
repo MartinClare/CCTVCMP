@@ -12,9 +12,10 @@ const analysisSchema = z.object({
   constructionSafety: safetyCategorySchema,
   fireSafety: safetyCategorySchema,
   propertySecurity: safetyCategorySchema,
-  peopleCount: z.number().optional(),
-  missingHardhats: z.number().optional(),
-  missingVests: z.number().optional(),
+  // nullish() = accepts number | null | undefined — Python sends null when field is absent
+  peopleCount: z.number().nullish(),
+  missingHardhats: z.number().nullish(),
+  missingVests: z.number().nullish(),
 });
 
 export const edgeReportSchema = z.object({
