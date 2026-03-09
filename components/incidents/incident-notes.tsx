@@ -1,24 +1,50 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-export function IncidentNotes({ incidentId, currentNotes }: { incidentId: string; currentNotes: string | null }) {
+export function IncidentNotes({
+  incidentId,
+  currentNotes,
+}: {
+  incidentId: string;
+  currentNotes: string | null;
+}) {
+  const router = useRouter();
   const [notes, setNotes] = useState(currentNotes ?? "");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   async function handleSave() {
     setSaving(true);
-    setSaved(false);
+    setStatus("idle");
+    setErrorMsg(null);
     try {
-      await fetch(`/api/incidents/${incidentId}`, {
+      const res = await fetch(`/api/incidents/${incidentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes }),
       });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setErrorMsg(
+          typeof body?.message === "string"
+            ? body.message
+            : `Save failed (${res.status})`
+        );
+        setStatus("error");
+        return;
+      }
+
+      setStatus("saved");
+      setTimeout(() => setStatus("idle"), 2000);
+      router.refresh();
+    } catch {
+      setErrorMsg("Network error — please try again.");
+      setStatus("error");
     } finally {
       setSaving(false);
     }
@@ -36,7 +62,12 @@ export function IncidentNotes({ incidentId, currentNotes }: { incidentId: string
         <Button size="sm" onClick={handleSave} disabled={saving}>
           {saving ? "Saving..." : "Save Notes"}
         </Button>
-        {saved && <span className="text-xs text-green-500">Saved</span>}
+        {status === "saved" && (
+          <span className="text-xs text-green-500">Saved</span>
+        )}
+        {status === "error" && (
+          <span className="text-xs text-destructive">{errorMsg}</span>
+        )}
       </div>
     </div>
   );

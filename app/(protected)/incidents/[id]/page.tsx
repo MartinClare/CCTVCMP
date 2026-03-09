@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { IncidentActions } from "@/components/incidents/incident-actions";
 import { IncidentNotes } from "@/components/incidents/incident-notes";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { formatHKT } from "@/lib/utils";
 
 export default async function IncidentDetailPage({ params }: { params: { id: string } }) {
@@ -33,6 +34,7 @@ export default async function IncidentDetailPage({ params }: { params: { id: str
 
   return (
     <div className="space-y-6">
+      <AutoRefresh intervalSec={15} />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold">
