@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { formatHKT } from "@/lib/utils";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ export default async function EdgeDeviceDetailPage({ params }: { params: { id: s
 
   return (
     <div className="space-y-6">
+      <AutoRefresh intervalSec={10} />
       <div className="flex items-center gap-4">
         <Link href="/edge-devices">
           <Button variant="ghost" size="icon">
