@@ -69,7 +69,8 @@ Respond with STRICT JSON (no markdown fences):
 Include ALL 8 types in the response, even if not detected (set detected: false).`;
 
 function getApiKey(): string | null {
-  return process.env.OPENROUTER_API_KEY ?? null;
+  // Trim to guard against Vercel env vars saved with accidental whitespace
+  return process.env.OPENROUTER_API_KEY?.trim() || null;
 }
 
 /**
@@ -112,7 +113,7 @@ function mapOverallRisk(level: string): IncidentRiskLevel {
 async function classifyWithLLM(analysis: AnalysisPayload): Promise<Classification[]> {
   const apiKey = getApiKey();
   if (!apiKey) {
-    console.warn("[LLM-Classifier] No OPENROUTER_API_KEY set, using fallback");
+    console.warn("[LLM-Classifier] OPENROUTER_API_KEY is not set or empty — using keyword fallback");
     return [];
   }
 

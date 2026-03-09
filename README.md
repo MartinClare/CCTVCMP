@@ -1,6 +1,6 @@
 # AXON Vision Central Monitoring Platform (CMP)
 
-A production-ready full-stack application for centralized construction AI safety monitoring. Tracks incidents, manages live camera feeds, enforces role-based access control, and surfaces analytics dashboards for project safety teams.
+A production-ready full-stack application for centralized construction AI safety monitoring. Edge devices stream live AI analysis to the CMP via webhook; the platform classifies reports, triggers alarms, tracks incidents through their full lifecycle, and surfaces real-time analytics dashboards for project safety teams.
 
 ---
 
@@ -12,22 +12,25 @@ A production-ready full-stack application for centralized construction AI safety
 | Database | PostgreSQL via [Neon](https://neon.tech) |
 | ORM | Prisma 5 |
 | Auth | JWT (HS256) in HTTP-only cookies |
-| Styling | TailwindCSS 3 + shadcn/ui-style components |
+| Styling | TailwindCSS 3 + shadcn/ui |
 | Charts | Recharts |
-| Testing | Vitest + Testing Library |
+| LLM | OpenRouter → Google Gemini (incident classification) |
 | Deployment | Vercel |
 
 ---
 
 ## Features
 
-- **Authentication** — Email/password signup & signin with bcrypt hashing and secure HTTP-only JWT cookies
+- **Authentication** — Email/password with bcrypt hashing and secure HTTP-only JWT cookies
 - **RBAC** — Four roles: `admin`, `project_manager`, `safety_officer`, `viewer` — enforced at the middleware and API level
-- **Incidents** — Full lifecycle: `open → acknowledged → resolved` with audit log on every transition
-- **Live Monitoring** — Camera grid view per project and zone
-- **Analytics** — Daily incident trends, risk distribution, and PPE compliance charts
-- **KPI Dashboard** — Total incidents, high-risk count, avg response time, compliance rate
-- **Projects & Users** — API-managed via admin/PM roles
+- **Edge Device Webhook** — Edge cameras auto-register and stream AI analysis reports via `POST /api/webhook/edge-report` authenticated by `X-API-Key`
+- **LLM Incident Classification** — CMP uses OpenRouter/Gemini to classify edge reports into 8 incident types (PPE violation, fire, fall risk, etc.)
+- **Alarm Engine** — Configurable alarm rules with per-type thresholds, deduplication window, consecutive-hit requirements, and record-only mode
+- **Incidents** — Full lifecycle: `open → acknowledged → resolved / dismissed` with per-action audit log
+- **Edge Device Management** — Register, monitor, and toggle maintenance mode for all edge cameras; auto-refreshes every 10 s
+- **Analytics** — All charts are computed from real `edge_reports` data: daily report volume by risk level, risk distribution pie, and per-day PPE compliance trend
+- **KPI Dashboard** — Total open incidents, high-risk count, online devices, recent alert feed
+- **Hong Kong Time** — All timestamps displayed in HKT (UTC+8)
 
 ---
 
@@ -36,48 +39,49 @@ A production-ready full-stack application for centralized construction AI safety
 ```
 app/
   (protected)/
-    dashboard/       # KPI overview
-    live/            # Camera grid
-    incidents/       # Incident table + actions
-    analytics/       # Charts
-    reports/         # Export placeholder
-    settings/        # Config placeholder
+    dashboard/          # KPI overview + alert feed
+    incidents/          # Incident table, detail page, status actions
+    edge-devices/       # Device list + per-device detail & report history
+    analytics/          # Real-data charts from edge_reports
+    settings/           # Alarm rule configuration
   api/
-    auth/signin      # POST
-    auth/signup      # POST
-    auth/signout     # POST
-    incidents/       # GET, POST
-    incidents/[id]/  # GET, PATCH
-    projects/        # GET, POST
-    users/           # GET, POST
-    analytics/       # GET
+    auth/signin         # POST
+    auth/signup         # POST
+    auth/signout        # POST
+    incidents/          # GET, POST
+    incidents/[id]/     # GET, PATCH
+    edge-devices/       # GET
+    edge-devices/[id]/  # GET, PATCH, DELETE
+    projects/           # GET, POST
+    users/              # GET, POST
+    analytics/          # GET
+    webhook/edge-report # POST — edge device ingest endpoint
   signin/
   signup/
 components/
-  ui/                # Button, Card, Input, Badge, Table
-  layout/            # AppShell, Sidebar, TopNavbar
-  auth/              # AuthForm
-  incidents/         # IncidentTable, IncidentActions
-  live/              # CameraGrid
-  analytics/         # Charts
-  kpi-cards.tsx
+  ui/                   # Button, Card, Input, Badge, Table, …
+  layout/               # AppShell, Sidebar, TopNavbar
+  auth/                 # AuthForm
+  incidents/            # IncidentTable, IncidentActions, IncidentNotes
+  edge-devices/         # EdgeDeviceList, RegisterDeviceForm
+  analytics/            # AnalyticsCharts
+  dashboard/            # AlertFeed, EdgeStatusPanel
+  auto-refresh.tsx      # Client component — calls router.refresh() on interval
 lib/
-  auth.ts            # JWT sign/verify, cookie helpers
-  prisma.ts          # Prisma singleton
-  rbac.ts            # Role access checks
-  analytics.ts       # Snapshot builder
-  workflows/
-    incident.ts      # Status transition logic
+  auth.ts               # JWT sign/verify, bcrypt helpers, cookie helpers
+  prisma.ts             # Prisma singleton
+  rbac.ts               # Role access checks
+  analytics.ts          # Snapshot builder (from EdgeReport[])
+  llm-classifier.ts     # OpenRouter/Gemini incident type classification
+  alarm-engine.ts       # Alarm rule evaluation + dedup + incident creation
+  utils.ts              # formatHKT() and cn() helpers
   validations/
-    auth.ts          # Zod schemas
+    webhook.ts          # Zod schema for edge-report payload
+    auth.ts
     incidents.ts
 prisma/
   schema.prisma
-  seed.ts
-tests/
-  unit/rbac.test.ts
-  integration/incident-workflow.test.ts
-middleware.ts        # Edge RBAC guard
+middleware.ts           # Edge RBAC + auth guard
 ```
 
 ---
@@ -89,30 +93,33 @@ middleware.ts        # Edge RBAC guard
 | `users` | Authenticated users with role |
 | `projects` | Construction site projects |
 | `zones` | Risk zones within a project |
-| `cameras` | Cameras assigned to zones |
-| `incidents` | Safety incidents with lifecycle status |
-| `incident_logs` | Audit log for every incident action |
-| `daily_metrics` | Aggregated daily KPI data per project |
+| `cameras` | Edge cameras; auto-created on first report by `edgeCameraId` |
+| `edge_reports` | Raw AI analysis reports received from edge devices |
+| `incidents` | Safety incidents with lifecycle status and audit trail |
+| `incident_logs` | Per-action audit log for every incident transition |
+| `alarm_rules` | Configurable rules mapping incident types to thresholds |
+| `notification_channels` | Email / webhook / dashboard notification targets |
+| `notification_logs` | Log of every notification sent |
 
 ---
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and fill in your values:
-
-```bash
-cp .env.example .env
-```
-
 ```env
-DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
-JWT_SECRET="a-long-random-secret-minimum-32-characters"
-EDGE_API_KEY="your-secret-key"
+# Neon pooled connection string (hostname must contain -pooler)
+DATABASE_URL="postgresql://user:password@host-pooler.region.aws.neon.tech/dbname?sslmode=require"
+
+# Strong random secret for signing JWTs (32+ chars)
+JWT_SECRET="replace-with-a-long-random-secret"
+
+# Must match centralServer.apiKey in the edge device app.config.json
+EDGE_API_KEY="axonedge852852"
+
+# OpenRouter API key — used by CMP to classify incident types via Gemini
+OPENROUTER_API_KEY="sk-or-v1-..."
 ```
 
-- **EDGE_API_KEY** — Used to authenticate edge devices sending Deep Vision results to `POST /api/webhook/edge-report`. Set the same value as `centralServer.apiKey` in the edge `app.config.json`.
-
-> **Neon users:** Use the pooled connection string (hostname contains `-pooler`). Remove `&channel_binding=require` from the URL — Prisma does not support it.
+> **Neon tip:** Use the **pooled** connection string (hostname contains `-pooler`). Remove `&channel_binding=require` from the URL — Prisma does not support it.
 
 ---
 
@@ -120,35 +127,33 @@ EDGE_API_KEY="your-secret-key"
 
 ```bash
 npm install
-npm run prisma:migrate
-npm run prisma:seed
+npx prisma migrate deploy
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) — redirects to `/dashboard`.
 
-### Local test with Neon (same DB as production)
+---
 
-To run CMP locally but use your **online Neon** database (e.g. to test before deploying to Vercel):
+## Deploying to Vercel
 
-1. In `CCTVCMP/.env`, set `DATABASE_URL` to your Neon **pooled** connection string (hostname contains `-pooler`). Do not include `&channel_binding=require`. Set `JWT_SECRET` and `EDGE_API_KEY` as well.
-2. From the `CCTVCMP` folder, apply migrations and seed:
-   ```bash
-   npm install
-   npx prisma migrate deploy
-   npm run prisma:seed
-   npm run dev
-   ```
-3. Open [http://localhost:3000](http://localhost:3000) (or the port shown). Use the seeded demo accounts to sign in.
+1. Push the repository to GitHub.
+2. In [Vercel](https://vercel.com), import the project and set **Root Directory** to `CCTVCMP`.
+3. Add the four **Environment Variables** listed above under *Project Settings → Environment Variables* for Production.
+4. Deploy. Each deploy runs `prisma migrate deploy` then `next build`.
 
-You are now running the app locally against the same Neon database you can use in production. Changes (users, incidents, etc.) persist in Neon.
+### After first deploy — create your admin user
 
-### Demo accounts (seeded)
+Run the following locally (with your production `DATABASE_URL`) or via the Neon console to insert your first admin account:
 
-| Email | Password | Role |
-|---|---|---|
-| `admin@axonvision.com` | `Admin@123456` | `admin` |
-| `safety@axonvision.com` | `Safety@123456` | `safety_officer` |
+```bash
+# Hash the password locally
+node -e "require('bcryptjs').hash('YourPassword', 12).then(console.log)"
+
+# Then INSERT into users via Neon SQL editor or psql:
+# INSERT INTO users (id, name, email, hashed_password, role, created_at, updated_at)
+# VALUES (gen_random_uuid()::text, 'Name', 'email@example.com', '<hash>', 'admin', NOW(), NOW());
+```
 
 ---
 
@@ -160,11 +165,8 @@ You are now running the app locally against the same Neon database you can use i
 | `npm run build` | Production build |
 | `npm run start` | Run production server |
 | `npm run lint` | ESLint checks |
-| `npm run test` | Run all tests |
-| `npm run test:coverage` | Coverage report |
 | `npm run prisma:generate` | Regenerate Prisma client |
-| `npm run prisma:migrate` | Apply DB migrations |
-| `npm run prisma:seed` | Seed demo data |
+| `npm run prisma:migrate` | Apply DB migrations (dev) |
 | `npm run db:push` | Push schema without migration (dev only) |
 
 ---
@@ -186,13 +188,24 @@ You are now running the app locally against the same Neon database you can use i
 | GET | `/api/incidents` | List all incidents |
 | POST | `/api/incidents` | Create incident |
 | GET | `/api/incidents/[id]` | Get single incident with logs |
-| PATCH | `/api/incidents/[id]` | Update status or assignee |
+| PATCH | `/api/incidents/[id]` | Update status, notes, or assignee |
 
-### Edge webhook (machine-to-machine)
+### Edge Devices
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/edge-devices` | List all registered cameras |
+| GET | `/api/edge-devices/[id]` | Get camera + recent reports |
+| PATCH | `/api/edge-devices/[id]` | Update status / name |
+| DELETE | `/api/edge-devices/[id]` | Remove camera + all its data |
+
+### Edge Webhook (machine-to-machine)
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| POST | `/api/webhook/edge-report` | `X-API-Key` header | Ingest Deep Vision results from edge; creates cameras by `edgeCameraId` and incidents by classification. No JWT. |
+| POST | `/api/webhook/edge-report` | `X-API-Key` header | Ingest AI analysis from edge device. Auto-creates the camera record on first call. Runs LLM classification and alarm evaluation in the background. |
+
+See `WEBHOOK_API.md` for full payload schema and examples.
 
 ### Other
 
@@ -200,7 +213,61 @@ You are now running the app locally against the same Neon database you can use i
 |---|---|---|
 | GET/POST | `/api/projects` | List or create projects |
 | GET/POST | `/api/users` | List or create users (admin only) |
-| GET | `/api/analytics` | Trend data + KPI snapshot |
+| GET | `/api/analytics` | Trend + KPI snapshot from real edge_reports |
+
+---
+
+## Edge Device Integration
+
+The CMP is designed to work with the [AXON Vision Edge](https://github.com/MartinClare/edge) device, which runs:
+
+- **Python backend** — captures RTSP frames, calls the local Node.js service, and forwards analysis to the CMP webhook via `alarm_observer.py`
+- **Node.js cloud service** — calls OpenRouter/Gemini Vision with the raw JPEG frame and returns structured safety analysis
+
+### Data flow
+
+```
+RTSP Camera
+    ↓ JPEG frame (every N seconds)
+Python backend (port 8000)
+    ↓ POST /api/analyze-image
+Node.js cloud service (port 3001) — uses edge's own OPENROUTER_API_KEY
+    ↓ Gemini Vision → structured JSON (people count, PPE, issues)
+Python alarm_observer._send_to_central_server()
+    ↓ POST https://cctvcmp.vercel.app/api/webhook/edge-report
+    ↓   Header: X-API-Key: <EDGE_API_KEY>
+CMP Webhook — saves EdgeReport, responds 202 immediately
+    ↓ background: LLM classifies issues into incident types
+    ↓ Alarm engine evaluates rules, deduplicates, creates Incidents
+Incidents page — live results, auto-refreshes every 10 s
+```
+
+### Edge device `app.config.json` (relevant section)
+
+```json
+"centralServer": {
+  "enabled": true,
+  "url": "https://cctvcmp.vercel.app/api/webhook/edge-report",
+  "apiKey": "axonedge852852"
+}
+```
+
+`apiKey` here must match `EDGE_API_KEY` in Vercel.
+
+---
+
+## Incident Types
+
+| Type | Trigger |
+|---|---|
+| `ppe_violation` | Missing hardhats or vests detected |
+| `fall_risk` | Fall hazard reported in analysis |
+| `restricted_zone_entry` | Unauthorised area breach |
+| `machinery_hazard` | Equipment safety issue |
+| `near_miss` | Near-miss event detected |
+| `smoking` | Smoking detected on site |
+| `fire_detected` | Fire identified in frame |
+| `smoke_detected` | Smoke identified in frame |
 
 ---
 
@@ -208,46 +275,18 @@ You are now running the app locally against the same Neon database you can use i
 
 | Route / Action | admin | project_manager | safety_officer | viewer |
 |---|:---:|:---:|:---:|:---:|
-| Dashboard, Live, Incidents, Analytics | ✅ | ✅ | ✅ | ✅ |
-| Reports | ✅ | ✅ | ✅ | ❌ |
-| Settings | ✅ | ✅ | ❌ | ❌ |
+| Dashboard, Incidents, Analytics, Edge Devices | ✅ | ✅ | ✅ | ✅ |
+| Settings (alarm rules) | ✅ | ✅ | ❌ | ❌ |
 | `/api/users` | ✅ | ❌ | ❌ | ❌ |
 | `/api/projects` | ✅ | ✅ | ❌ | ❌ |
-
----
-
-## Deploying to Vercel
-
-1. Push the repository to GitHub (this app lives in the **vd2** repo under the `CCTVCMP` folder).
-2. In [Vercel](https://vercel.com), import the project and connect the **vd2** repo.
-3. Set **Root Directory** to **`CCTVCMP`** (Project Settings → General). Vercel will run `npm install` and `npm run build` from that directory.
-4. Add **Environment Variables** (Project Settings → Environment Variables) for Production (and Preview if desired):
-   - **`DATABASE_URL`** — Neon **pooled** connection string (hostname must contain `-pooler`). Do not include `&channel_binding=require`; Prisma does not support it.
-   - **`JWT_SECRET`** — Strong random secret for signing JWTs (e.g. 32+ characters).
-   - **`EDGE_API_KEY`** — Same value as `centralServer.apiKey` in the edge `app.config.json`; used to authenticate webhook requests to `POST /api/webhook/edge-report`.
-5. Deploy. Each deploy runs `prisma migrate deploy` then `next build`, so the Neon database stays in sync with the Prisma migrations.
-
-Prisma client is generated in `postinstall`. For production demo users (e.g. admin/safety), run `npm run prisma:seed` once against the production `DATABASE_URL` (e.g. locally with `DATABASE_URL="..." npm run prisma:seed` or via a one-off script).
-
----
-
-## Running Tests
-
-```bash
-npm run test            # run all tests
-npm run test:coverage   # with coverage report
-```
-
-Tests cover:
-- RBAC role access logic (`tests/unit/rbac.test.ts`)
-- Incident status transition workflow (`tests/integration/incident-workflow.test.ts`)
 
 ---
 
 ## Security Notes
 
 - Passwords are hashed with bcrypt (12 rounds)
-- JWTs are signed HS256 and stored in HTTP-only, SameSite strict cookies
+- JWTs are signed HS256, stored in HTTP-only `SameSite=Strict` cookies, expire after 7 days
 - All API routes verify the auth cookie before any DB access
-- Role checks are enforced in both middleware (edge) and API handlers
-- Never commit `.env` — it is excluded via `.gitignore`
+- Role checks are enforced in both middleware (edge runtime) and API route handlers
+- Webhook authenticated by `X-API-Key`; no user JWT required or accepted
+- Never commit `.env` — excluded via `.gitignore`

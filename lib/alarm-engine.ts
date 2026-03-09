@@ -37,10 +37,12 @@ export async function evaluateAlarms(
   const detected = classification.classifications.filter((c) => c.detected);
   if (detected.length === 0) return result;
 
-  const rules = await prisma.alarmRule.findMany({ where: { enabled: true } });
+  const [rules, systemUser] = await Promise.all([
+    prisma.alarmRule.findMany({ where: { enabled: true } }),
+    prisma.user.findFirst({ where: { role: "admin" } }),
+  ]);
   const ruleMap = new Map(rules.map((r) => [r.incidentType, r]));
 
-  const systemUser = await prisma.user.findFirst({ where: { role: "admin" } });
   if (!systemUser) {
     console.error("[AlarmEngine] No admin user found for incident logs");
     return result;

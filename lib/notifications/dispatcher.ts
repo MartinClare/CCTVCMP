@@ -21,9 +21,16 @@ type IncidentWithRelations = Incident & {
  * Runs asynchronously — caller should fire-and-forget with .catch().
  */
 export async function dispatchNotifications(incident: IncidentWithRelations): Promise<void> {
-  const channels = await prisma.notificationChannel.findMany({
-    where: { enabled: true },
-  });
+  // Fast-path: skip expensive query if no channels are configured at all
+  let channels;
+  try {
+    channels = await prisma.notificationChannel.findMany({
+      where: { enabled: true },
+    });
+  } catch (err) {
+    console.error("[Notification] Could not fetch channels (pool busy?):", err);
+    return;
+  }
 
   const eligible = channels.filter(
     (ch) => RISK_ORDER[incident.riskLevel] >= RISK_ORDER[ch.minRiskLevel]
