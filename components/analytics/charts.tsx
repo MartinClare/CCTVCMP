@@ -109,7 +109,7 @@ export function AnalyticsCharts({ snapshot }: { snapshot: AnalyticsSnapshot }) {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                     <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                    <Tooltip formatter={(v: number) => [`${v}%`, "PPE Compliance"]} />
+                    <Tooltip formatter={(v) => [`${v ?? 0}%`, "PPE Compliance"]} />
                     <Line type="monotone" dataKey="compliance" name="PPE Compliance" stroke="#06b6d4" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
