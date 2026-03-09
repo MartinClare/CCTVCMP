@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { IncidentActions } from "@/components/incidents/incident-actions";
+import { formatHKT } from "@/lib/utils";
 
 type IncidentRow = {
   id: string;
@@ -123,7 +124,7 @@ export function IncidentTable({ incidents }: { incidents: IncidentRow[] }) {
                 </TableCell>
                 <TableCell>{incident.camera.name}</TableCell>
                 <TableCell>{incident.zone.name}</TableCell>
-                <TableCell className="text-xs">{new Date(incident.detectedAt).toLocaleString()}</TableCell>
+                <TableCell className="text-xs">{formatHKT(incident.detectedAt)}</TableCell>
                 <TableCell>{incident.assignee?.name ?? "—"}</TableCell>
                 <TableCell>
                   <IncidentActions incidentId={incident.id} currentStatus={incident.status} />

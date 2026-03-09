@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { formatHKT } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,7 +76,7 @@ export default async function EdgeDeviceDetailPage({ params }: { params: { id: s
           <CardContent className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Last report</span>
-              <span>{camera.lastReportAt ? camera.lastReportAt.toLocaleString() : "Never"}</span>
+              <span>{camera.lastReportAt ? formatHKT(camera.lastReportAt) : "Never"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total reports</span>
@@ -136,7 +137,7 @@ export default async function EdgeDeviceDetailPage({ params }: { params: { id: s
                         {r.overallRiskLevel}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        {r.receivedAt.toLocaleString()}
+                        {formatHKT(r.receivedAt)}
                       </span>
                     </div>
                   </div>

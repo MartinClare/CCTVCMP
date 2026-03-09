@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { IncidentActions } from "@/components/incidents/incident-actions";
 import { IncidentNotes } from "@/components/incidents/incident-notes";
+import { formatHKT } from "@/lib/utils";
 
 export default async function IncidentDetailPage({ params }: { params: { id: string } }) {
   const incident = await prisma.incident.findUnique({
@@ -54,10 +55,10 @@ export default async function IncidentDetailPage({ params }: { params: { id: str
         <Card>
           <CardHeader><CardTitle className="text-sm">Details</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <Row label="Detected" value={incident.detectedAt.toLocaleString()} />
-            {incident.acknowledgedAt && <Row label="Acknowledged" value={incident.acknowledgedAt.toLocaleString()} />}
-            {incident.resolvedAt && <Row label="Resolved" value={incident.resolvedAt.toLocaleString()} />}
-            {incident.dismissedAt && <Row label="Dismissed" value={incident.dismissedAt.toLocaleString()} />}
+            <Row label="Detected" value={formatHKT(incident.detectedAt)} />
+            {incident.acknowledgedAt && <Row label="Acknowledged" value={formatHKT(incident.acknowledgedAt)} />}
+            {incident.resolvedAt && <Row label="Resolved" value={formatHKT(incident.resolvedAt)} />}
+            {incident.dismissedAt && <Row label="Dismissed" value={formatHKT(incident.dismissedAt)} />}
             <Row label="Assigned To" value={incident.assignee?.name ?? "Unassigned"} />
           </CardContent>
         </Card>
@@ -91,7 +92,7 @@ export default async function IncidentDetailPage({ params }: { params: { id: str
                 <div>
                   <span className="font-medium">{log.action.replace("_", " ")}</span>
                   <span className="text-muted-foreground"> by {log.user.name}</span>
-                  <p className="text-xs text-muted-foreground">{log.timestamp.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{formatHKT(log.timestamp)}</p>
                 </div>
               </div>
             ))}
@@ -115,7 +116,7 @@ export default async function IncidentDetailPage({ params }: { params: { id: str
                     <Badge variant={nl.status === "sent" ? "secondary" : "destructive"}>
                       {nl.status}
                     </Badge>
-                    <span className="text-xs text-muted-foreground">{nl.sentAt.toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground">{formatHKT(nl.sentAt)}</span>
                   </div>
                 </div>
               ))}

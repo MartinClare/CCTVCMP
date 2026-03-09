@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatHKT } from "@/lib/utils";
 
 type AlertItem = {
   id: string;
@@ -48,7 +49,7 @@ export function AlertFeed({ incidents }: { incidents: AlertItem[] }) {
                     {inc.riskLevel}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(inc.detectedAt).toLocaleString()}
+                    {formatHKT(inc.detectedAt)}
                   </span>
                 </div>
               </Link>

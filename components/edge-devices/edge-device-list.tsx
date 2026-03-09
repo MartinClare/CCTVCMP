@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatHKT } from "@/lib/utils";
 
 type Device = {
   id: string;
@@ -118,7 +119,7 @@ export function EdgeDeviceList({ devices }: { devices: Device[] }) {
                 <TableCell className="font-mono text-xs">{d.edgeCameraId ?? "—"}</TableCell>
                 <TableCell>{d.zone?.name ?? "—"}</TableCell>
                 <TableCell className="text-xs">
-                  {d.lastReportAt ? new Date(d.lastReportAt).toLocaleString() : "Never"}
+                  {d.lastReportAt ? formatHKT(d.lastReportAt) : "Never"}
                 </TableCell>
                 <TableCell>
                   {d.latestReport ? riskBadge(d.latestReport.overallRiskLevel) : "—"}

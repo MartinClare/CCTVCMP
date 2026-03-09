@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatHKT } from "@/lib/utils";
 
 type DeviceStatus = {
   id: string;
@@ -75,7 +76,7 @@ export function EdgeStatusPanel({ devices }: { devices: DeviceStatus[] }) {
               )}
               <p className="text-xs text-muted-foreground">
                 {d.lastReportAt
-                  ? `Last report: ${new Date(d.lastReportAt).toLocaleString()}`
+                  ? `Last report: ${formatHKT(d.lastReportAt)}`
                   : "No reports yet"}
               </p>
             </Link>
