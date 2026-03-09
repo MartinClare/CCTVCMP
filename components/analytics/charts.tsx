@@ -83,7 +83,7 @@ export function AnalyticsCharts({ snapshot }: { snapshot: AnalyticsSnapshot }) {
             <CardContent className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={riskDistribution} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name, percent }: { name: string; percent: number }) => `${name} ${Math.round(percent * 100)}%`}>
+                  <Pie data={riskDistribution} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name, percent }) => `${String(name ?? "")} ${Math.round((percent ?? 0) * 100)}%`}>
                     {riskDistribution.map((entry, i) => (
                       <Cell key={i} fill={entry.fill} />
                     ))}
