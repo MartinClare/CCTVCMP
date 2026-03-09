@@ -88,7 +88,7 @@ export function AnalyticsCharts({ snapshot }: { snapshot: AnalyticsSnapshot }) {
                       <Cell key={i} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => [v, "Reports"]} />
+                  <Tooltip formatter={(v) => [v, "Reports"]} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
