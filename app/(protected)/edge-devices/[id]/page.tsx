@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { EdgeDeviceActions } from "@/components/edge-devices/edge-device-actions";
+import { StreamUrlForm } from "@/components/edge-devices/stream-url-form";
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
 
@@ -109,6 +110,9 @@ export default async function EdgeDeviceDetailPage({ params }: { params: { id: s
                 </p>
               </>
             )}
+            <div className="pt-2 border-t">
+              <StreamUrlForm deviceId={camera.id} initialStreamUrl={camera.streamUrl} />
+            </div>
           </CardContent>
         </Card>
 

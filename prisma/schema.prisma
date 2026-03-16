@@ -97,6 +97,7 @@ model Camera {
   id            String       @id @default(cuid())
   name          String
   edgeCameraId  String?      @unique @map("edge_camera_id")
+  streamUrl     String?      @map("stream_url")
   projectId     String       @map("project_id")
   zoneId        String?      @map("zone_id")
   status        CameraStatus @default(online)

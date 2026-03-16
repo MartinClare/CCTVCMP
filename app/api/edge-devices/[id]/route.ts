@@ -26,6 +26,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
+  streamUrl: z.string().trim().min(1).nullable().optional(),
   zoneId: z.string().optional(),
   status: z.enum(["online", "offline", "maintenance"]).optional(),
 });

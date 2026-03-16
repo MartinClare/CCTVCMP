@@ -13,6 +13,7 @@ export function RegisterDeviceForm({ projects }: { projects: Project[] }) {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [edgeCameraId, setEdgeCameraId] = useState("");
+  const [streamUrl, setStreamUrl] = useState("");
   const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
   const [zoneId, setZoneId] = useState(projects[0]?.zones[0]?.id ?? "");
   const router = useRouter();
@@ -30,6 +31,7 @@ export function RegisterDeviceForm({ projects }: { projects: Project[] }) {
         body: JSON.stringify({
           name: name.trim(),
           edgeCameraId: edgeCameraId.trim(),
+          streamUrl: streamUrl.trim() || undefined,
           projectId,
           zoneId: zoneId || undefined,
         }),
@@ -42,6 +44,7 @@ export function RegisterDeviceForm({ projects }: { projects: Project[] }) {
       setOpen(false);
       setName("");
       setEdgeCameraId("");
+      setStreamUrl("");
       router.refresh();
     } finally {
       setSaving(false);
@@ -76,6 +79,14 @@ export function RegisterDeviceForm({ projects }: { projects: Project[] }) {
                   onChange={(e) => setEdgeCameraId(e.target.value)}
                   placeholder="Unique ID from edge device"
                   required
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Stream URL (optional)</label>
+                <Input
+                  value={streamUrl}
+                  onChange={(e) => setStreamUrl(e.target.value)}
+                  placeholder="https://...m3u8 or http://...mjpg"
                 />
               </div>
               <div>

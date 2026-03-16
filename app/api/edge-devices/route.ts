@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
 const createSchema = z.object({
   name: z.string().min(1),
   edgeCameraId: z.string().min(1),
+  streamUrl: z.string().trim().min(1).optional(),
   projectId: z.string().min(1),
   zoneId: z.string().optional(),
 });
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
     data: {
       name: parsed.data.name,
       edgeCameraId: parsed.data.edgeCameraId,
+      streamUrl: parsed.data.streamUrl,
       projectId: parsed.data.projectId,
       zoneId: parsed.data.zoneId,
     },
