@@ -108,6 +108,17 @@ export default async function EdgeDeviceDetailPage({ params }: { params: { id: s
                 <p className="text-muted-foreground pt-2 border-t line-clamp-2">
                   {latestReport.overallDescription}
                 </p>
+                {latestReport.eventImagePath && (
+                  <div className="pt-2 border-t">
+                    <p className="mb-2 text-xs text-muted-foreground">Latest event evidence image</p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={latestReport.eventImagePath}
+                      alt="Event evidence"
+                      className="max-h-52 w-full rounded border object-contain"
+                    />
+                  </div>
+                )}
               </>
             )}
             <div className="pt-2 border-t">

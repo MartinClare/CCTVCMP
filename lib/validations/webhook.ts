@@ -8,7 +8,7 @@ const safetyCategorySchema = z.object({
 
 const analysisSchema = z.object({
   overallDescription: z.string(),
-  overallRiskLevel: z.enum(["Low", "Medium", "High"]),
+  overallRiskLevel: z.enum(["Low", "Medium", "High", "Critical"]),
   constructionSafety: safetyCategorySchema,
   fireSafety: safetyCategorySchema,
   propertySecurity: safetyCategorySchema,
@@ -22,7 +22,19 @@ export const edgeReportSchema = z.object({
   edgeCameraId: z.string().min(1),
   cameraName: z.string(),
   timestamp: z.string(),
-  analysis: analysisSchema,
+  messageType: z.enum(["analysis", "keepalive"]).default("analysis"),
+  keepalive: z.boolean().default(false),
+  eventImageIncluded: z.boolean().default(false),
+  analysis: analysisSchema.optional(),
+}).superRefine((val, ctx) => {
+  const isKeepalive = val.keepalive || val.messageType === "keepalive";
+  if (!isKeepalive && val.messageType === "analysis" && !val.analysis) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["analysis"],
+      message: "analysis is required when messageType is 'analysis'",
+    });
+  }
 });
 
 export type EdgeReportPayload = z.infer<typeof edgeReportSchema>;

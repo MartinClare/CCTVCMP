@@ -38,39 +38,49 @@ const INCIDENT_TYPES: IncidentType[] = [
   "smoke_detected",
 ];
 
-const CLASSIFICATION_PROMPT = `You are a safety incident classifier. Given a safety analysis report from an edge AI camera, determine which incident types are present.
+const CLASSIFICATION_PROMPT = `Classify safety issues into incident types.
 
-For EACH of the following incident types, decide if it is detected or not:
-- ppe_violation: Missing hard hats, safety vests, or other PPE
-- fall_risk: Height work without protection, unstable scaffolding, missing guardrails, ladder hazards
-- restricted_zone_entry: Unauthorized persons, trespassing, breached perimeters
-- machinery_hazard: Unsafe equipment operation, workers too close to heavy machinery
-- near_miss: Close calls, narrowly avoided accidents
-- smoking: Workers smoking in prohibited areas
-- fire_detected: Active fire, flames, burning materials
-- smoke_detected: Visible smoke, smoldering
+Rules:
+- fire_detected only if active flame/fire is mentioned
+- smoke_detected only if visible smoke is mentioned
+- "no issues" / clear statements mean not detected
+- output ALL 8 incident types
 
-CRITICAL RULES:
-- "No fire hazards observed" means fire_detected is NOT detected. Pay attention to negations.
-- "Fire extinguisher missing" is a safety concern but NOT an active fire - classify as near_miss, not fire_detected.
-- Only classify fire_detected if there is an ACTIVE fire or flame.
-- Only classify smoke_detected if there is VISIBLE smoke.
-- Read the issues arrays carefully - they contain the specific problems found.
-- If a category has empty issues and the summary says "no issues" or similar, that category is clear.
-- Use the overallRiskLevel as a baseline but adjust per-incident based on severity described.
-
-Respond with STRICT JSON (no markdown fences):
+Return STRICT JSON only:
 {
   "classifications": [
-    { "type": "<incident_type>", "detected": true/false, "riskLevel": "low|medium|high|critical", "confidence": 0.0-1.0, "reasoning": "brief explanation" }
+    { "type": "<incident_type>", "detected": true/false, "riskLevel": "low|medium|high|critical", "confidence": 0-1, "reasoning": "brief" }
   ]
-}
+}`;
 
-Include ALL 8 types in the response, even if not detected (set detected: false).`;
+const CLASSIFIER_MAX_TOKENS = 350;
+const CLASSIFIER_CACHE_TTL_MS = 3 * 60 * 1000;
+const classificationCache = new Map<string, { at: number; results: Classification[] }>();
 
 function getApiKey(): string | null {
   // Trim to guard against Vercel env vars saved with accidental whitespace
   return process.env.OPENROUTER_API_KEY?.trim() || null;
+}
+
+function extractCompactPayload(analysis: AnalysisPayload) {
+  return {
+    overallRiskLevel: analysis.overallRiskLevel,
+    peopleCount: analysis.peopleCount ?? 0,
+    missingHardhats: analysis.missingHardhats ?? 0,
+    missingVests: analysis.missingVests ?? 0,
+    constructionIssues: analysis.constructionSafety.issues ?? [],
+    fireIssues: analysis.fireSafety.issues ?? [],
+    propertyIssues: analysis.propertySecurity.issues ?? [],
+  };
+}
+
+function shouldSkipLLM(analysis: AnalysisPayload): boolean {
+  const noIssueText =
+    (analysis.constructionSafety.issues?.length ?? 0) === 0 &&
+    (analysis.fireSafety.issues?.length ?? 0) === 0 &&
+    (analysis.propertySecurity.issues?.length ?? 0) === 0;
+  const ppeClean = (analysis.missingHardhats ?? 0) === 0 && (analysis.missingVests ?? 0) === 0;
+  return noIssueText && ppeClean;
 }
 
 /**
@@ -99,6 +109,7 @@ function classifyPPE(analysis: AnalysisPayload): Classification {
 
 function mapOverallRisk(level: string): IncidentRiskLevel {
   switch (level) {
+    case "Critical": return "critical";
     case "High": return "high";
     case "Medium": return "medium";
     case "Low": return "low";
@@ -111,20 +122,23 @@ function mapOverallRisk(level: string): IncidentRiskLevel {
  * Returns classifications for all non-PPE incident types.
  */
 async function classifyWithLLM(analysis: AnalysisPayload): Promise<Classification[]> {
+  if (shouldSkipLLM(analysis)) {
+    // No non-PPE safety issues to classify; avoid spending tokens.
+    return [];
+  }
+
   const apiKey = getApiKey();
   if (!apiKey) {
     console.warn("[LLM-Classifier] OPENROUTER_API_KEY is not set or empty — using keyword fallback");
     return [];
   }
 
-  const reportText = JSON.stringify({
-    overallDescription: analysis.overallDescription,
-    overallRiskLevel: analysis.overallRiskLevel,
-    constructionSafety: analysis.constructionSafety,
-    fireSafety: analysis.fireSafety,
-    propertySecurity: analysis.propertySecurity,
-    peopleCount: analysis.peopleCount,
-  }, null, 2);
+  const compactPayload = extractCompactPayload(analysis);
+  const cacheKey = JSON.stringify(compactPayload);
+  const cached = classificationCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < CLASSIFIER_CACHE_TTL_MS) {
+    return cached.results;
+  }
 
   const response = await fetch(OPENROUTER_API_URL, {
     method: "POST",
@@ -138,10 +152,10 @@ async function classifyWithLLM(analysis: AnalysisPayload): Promise<Classificatio
       model: CLASSIFIER_MODEL,
       messages: [
         { role: "system", content: CLASSIFICATION_PROMPT },
-        { role: "user", content: `Classify this safety report:\n\n${reportText}` },
+        { role: "user", content: `Classify this report:\n${JSON.stringify(compactPayload)}` },
       ],
       temperature: 0.1,
-      max_tokens: 1024,
+      max_tokens: CLASSIFIER_MAX_TOKENS,
     }),
   });
 
@@ -166,9 +180,11 @@ async function classifyWithLLM(analysis: AnalysisPayload): Promise<Classificatio
 
   try {
     const parsed = JSON.parse(cleaned) as { classifications: Classification[] };
-    return (parsed.classifications ?? []).filter(
+    const filtered = (parsed.classifications ?? []).filter(
       (c) => INCIDENT_TYPES.includes(c.type) && c.type !== "ppe_violation"
     );
+    classificationCache.set(cacheKey, { at: Date.now(), results: filtered });
+    return filtered;
   } catch (e) {
     console.error("[LLM-Classifier] Failed to parse response:", e);
     return [];
