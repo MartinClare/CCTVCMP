@@ -34,10 +34,13 @@ export default async function EdgeDeviceDetailPage({ params }: { params: { id: s
     camera.lastReportAt != null &&
     now - camera.lastReportAt.getTime() < ONLINE_THRESHOLD_MS;
   const latestReport = camera.edgeReports[0];
+  const latestAlertedReportWithEvidence =
+    camera.edgeReports.find(
+      (r) =>
+        (r.overallRiskLevel === "Medium" || r.overallRiskLevel === "High" || r.overallRiskLevel === "Critical") &&
+        !!r.eventImagePath
+    ) ?? null;
   const latestAnalysis = extractLatestAnalysis(latestReport?.rawJson);
-  const peopleCount = latestAnalysis?.peopleCount ?? latestReport?.peopleCount ?? 0;
-  const missingHardhats = latestAnalysis?.missingHardhats ?? latestReport?.missingHardhats ?? 0;
-  const missingVests = latestAnalysis?.missingVests ?? latestReport?.missingVests ?? 0;
 
   return (
     <div className="space-y-6">
@@ -108,12 +111,27 @@ export default async function EdgeDeviceDetailPage({ params }: { params: { id: s
                 <p className="text-muted-foreground pt-2 border-t line-clamp-2">
                   {latestReport.overallDescription}
                 </p>
-                {latestReport.eventImagePath && (
+                {latestAlertedReportWithEvidence?.eventImagePath && (
                   <div className="pt-2 border-t">
-                    <p className="mb-2 text-xs text-muted-foreground">Latest event evidence image</p>
+                    <p className="mb-2 text-xs text-muted-foreground">Latest alerted evidence image</p>
+                    <div className="mb-2 flex items-center gap-2">
+                      <Badge
+                        variant={
+                          latestAlertedReportWithEvidence.overallRiskLevel === "High" ||
+                          latestAlertedReportWithEvidence.overallRiskLevel === "Critical"
+                            ? "destructive"
+                            : "default"
+                        }
+                      >
+                        {latestAlertedReportWithEvidence.overallRiskLevel}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatHKT(latestAlertedReportWithEvidence.receivedAt)}
+                      </span>
+                    </div>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={latestReport.eventImagePath}
+                      src={latestAlertedReportWithEvidence.eventImagePath}
                       alt="Event evidence"
                       className="max-h-52 w-full rounded border object-contain"
                     />
@@ -192,12 +210,6 @@ export default async function EdgeDeviceDetailPage({ params }: { params: { id: s
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <MetricCard label="Persons Detected" value={String(peopleCount)} />
-              <MetricCard label="Missing Hardhats" value={String(missingHardhats)} />
-              <MetricCard label="Missing Safety Vests" value={String(missingVests)} />
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
               <SafetyCard title="Construction Safety" data={latestAnalysis.constructionSafety} />
               <SafetyCard title="Fire Safety" data={latestAnalysis.fireSafety} />
               <SafetyCard title="Property Security" data={latestAnalysis.propertySecurity} />
@@ -218,9 +230,6 @@ type SafetyCategory = {
 type EdgeAnalysis = {
   overallDescription?: string;
   overallRiskLevel?: "Low" | "Medium" | "High";
-  peopleCount?: number;
-  missingHardhats?: number;
-  missingVests?: number;
   constructionSafety?: SafetyCategory;
   fireSafety?: SafetyCategory;
   propertySecurity?: SafetyCategory;
@@ -242,15 +251,6 @@ function extractLatestAnalysis(rawJson: unknown): EdgeAnalysis | null {
   }
 
   return analysisCandidate as EdgeAnalysis;
-}
-
-function MetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded border p-3 text-center">
-      <p className="text-2xl font-semibold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
-  );
 }
 
 function SafetyCard({ title, data }: { title: string; data?: SafetyCategory }) {

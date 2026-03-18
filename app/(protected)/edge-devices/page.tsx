@@ -13,13 +13,12 @@ export default async function EdgeDevicesPage() {
       zone: { select: { id: true, name: true } },
       edgeReports: {
         orderBy: { receivedAt: "desc" },
-        take: 1,
+        take: 10,
         select: {
+          id: true,
           overallRiskLevel: true,
           overallDescription: true,
-          peopleCount: true,
-          missingHardhats: true,
-          missingVests: true,
+          eventImagePath: true,
           receivedAt: true,
         },
       },
@@ -34,28 +33,46 @@ export default async function EdgeDevicesPage() {
   ]);
 
   const now = Date.now();
-  const devices = cameras.map((cam) => ({
-    id: cam.id,
-    name: cam.name,
-    edgeCameraId: cam.edgeCameraId,
-    status: cam.status,
-    lastReportAt: cam.lastReportAt?.toISOString() ?? null,
-    createdAt: cam.createdAt.toISOString(),
-    project: cam.project,
-    zone: cam.zone,
-    isOnline:
-      cam.status !== "maintenance" &&
-      cam.lastReportAt != null &&
-      now - cam.lastReportAt.getTime() < ONLINE_THRESHOLD_MS,
-    latestReport: cam.edgeReports[0]
-      ? {
-          ...cam.edgeReports[0],
-          receivedAt: cam.edgeReports[0].receivedAt.toISOString(),
-        }
-      : null,
-    incidentCount: cam._count.incidents,
-    reportCount: cam._count.edgeReports,
-  }));
+  const devices = cameras.map((cam) => {
+    const latestReport = cam.edgeReports[0] ?? null;
+    const latestAlertEvidence =
+      cam.edgeReports.find(
+        (r) =>
+          (r.overallRiskLevel === "Medium" || r.overallRiskLevel === "High" || r.overallRiskLevel === "Critical") &&
+          !!r.eventImagePath
+      ) ?? null;
+
+    return {
+      id: cam.id,
+      name: cam.name,
+      edgeCameraId: cam.edgeCameraId,
+      status: cam.status,
+      lastReportAt: cam.lastReportAt?.toISOString() ?? null,
+      createdAt: cam.createdAt.toISOString(),
+      project: cam.project,
+      zone: cam.zone,
+      isOnline:
+        cam.status !== "maintenance" &&
+        cam.lastReportAt != null &&
+        now - cam.lastReportAt.getTime() < ONLINE_THRESHOLD_MS,
+      latestReport: latestReport
+        ? {
+            ...latestReport,
+            receivedAt: latestReport.receivedAt.toISOString(),
+          }
+        : null,
+      latestAlertEvidence: latestAlertEvidence
+        ? {
+            id: latestAlertEvidence.id,
+            overallRiskLevel: latestAlertEvidence.overallRiskLevel,
+            eventImagePath: latestAlertEvidence.eventImagePath!,
+            receivedAt: latestAlertEvidence.receivedAt.toISOString(),
+          }
+        : null,
+      incidentCount: cam._count.incidents,
+      reportCount: cam._count.edgeReports,
+    };
+  });
 
   const onlineCount = devices.filter((d) => d.isOnline).length;
 

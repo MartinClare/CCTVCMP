@@ -19,11 +19,16 @@ type Device = {
   zone: { id: string; name: string } | null;
   isOnline: boolean;
   latestReport: {
+    id: string;
     overallRiskLevel: string;
     overallDescription: string;
-    peopleCount: number | null;
-    missingHardhats: number | null;
-    missingVests: number | null;
+    eventImagePath: string | null;
+    receivedAt: string;
+  } | null;
+  latestAlertEvidence: {
+    id: string;
+    overallRiskLevel: string;
+    eventImagePath: string;
     receivedAt: string;
   } | null;
   incidentCount: number;
@@ -78,6 +83,7 @@ export function EdgeDeviceList({ devices }: { devices: Device[] }) {
               <TableHead>Zone</TableHead>
               <TableHead>Last Report</TableHead>
               <TableHead>Risk</TableHead>
+              <TableHead>Evidence</TableHead>
               <TableHead>Reports</TableHead>
               <TableHead>Incidents</TableHead>
               <TableHead>Actions</TableHead>
@@ -86,7 +92,7 @@ export function EdgeDeviceList({ devices }: { devices: Device[] }) {
           <TableBody>
             {devices.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                   No edge devices registered. Devices auto-register when they send their first report.
                 </TableCell>
               </TableRow>
@@ -123,6 +129,15 @@ export function EdgeDeviceList({ devices }: { devices: Device[] }) {
                 </TableCell>
                 <TableCell>
                   {d.latestReport ? riskBadge(d.latestReport.overallRiskLevel) : "—"}
+                </TableCell>
+                <TableCell className="text-xs">
+                  {d.latestAlertEvidence ? (
+                    <Link href={`/api/edge-reports/${d.latestAlertEvidence.id}/image`} target="_blank" className="underline">
+                      View alert image
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">No alerted evidence</span>
+                  )}
                 </TableCell>
                 <TableCell>{d.reportCount}</TableCell>
                 <TableCell>{d.incidentCount}</TableCell>
