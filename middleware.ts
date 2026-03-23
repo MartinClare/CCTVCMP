@@ -47,7 +47,6 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/edge-devices/:path*",
-    "/live/:path*",
     "/incidents/:path*",
     "/analytics/:path*",
     "/reports/:path*",
