@@ -15,14 +15,6 @@ function riskBadgeVariant(level: string): "secondary" | "default" | "destructive
   return "secondary";
 }
 
-function prettyJson(value: unknown): string {
-  try {
-    return JSON.stringify(value ?? {}, null, 2);
-  } catch {
-    return "{}";
-  }
-}
-
 export default async function EdgeReportDetailPage({ params }: Props) {
   const report = await prisma.edgeReport.findUnique({
     where: { id: params.id },

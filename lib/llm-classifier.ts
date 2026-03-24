@@ -57,6 +57,41 @@ const CLASSIFIER_MAX_TOKENS = 350;
 const CLASSIFIER_CACHE_TTL_MS = 3 * 60 * 1000;
 const classificationCache = new Map<string, { at: number; results: Classification[] }>();
 
+function stripMarkdownFences(input: string): string {
+  let cleaned = input.trim();
+  if (cleaned.startsWith("```json")) cleaned = cleaned.slice(7);
+  else if (cleaned.startsWith("```")) cleaned = cleaned.slice(3);
+  if (cleaned.endsWith("```")) cleaned = cleaned.slice(0, -3);
+  return cleaned.trim();
+}
+
+function parseLLMJsonPayload(text: string): { classifications: Classification[] } | null {
+  const fenced = stripMarkdownFences(text);
+  const candidates: string[] = [fenced];
+
+  // Try extracting the largest JSON object block from mixed text.
+  const firstBrace = fenced.indexOf("{");
+  const lastBrace = fenced.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    candidates.push(fenced.slice(firstBrace, lastBrace + 1));
+  }
+
+  // Common model formatting issue: trailing commas before } or ].
+  const repaired = candidates
+    .map((c) => c.replace(/,\s*([}\]])/g, "$1"))
+    .filter((c, i, arr) => arr.indexOf(c) === i);
+  candidates.push(...repaired);
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as { classifications: Classification[] };
+    } catch {
+      // Continue trying other candidates.
+    }
+  }
+  return null;
+}
+
 function getApiKey(): string | null {
   // Trim to guard against Vercel env vars saved with accidental whitespace
   return process.env.OPENROUTER_API_KEY?.trim() || null;
@@ -172,21 +207,19 @@ async function classifyWithLLM(analysis: AnalysisPayload): Promise<Classificatio
   const text = result.choices?.[0]?.message?.content;
   if (!text) return [];
 
-  let cleaned = text.trim();
-  if (cleaned.startsWith("```json")) cleaned = cleaned.slice(7);
-  else if (cleaned.startsWith("```")) cleaned = cleaned.slice(3);
-  if (cleaned.endsWith("```")) cleaned = cleaned.slice(0, -3);
-  cleaned = cleaned.trim();
-
   try {
-    const parsed = JSON.parse(cleaned) as { classifications: Classification[] };
+    const parsed = parseLLMJsonPayload(text);
+    if (!parsed) {
+      throw new Error("Unable to parse model JSON payload");
+    }
     const filtered = (parsed.classifications ?? []).filter(
       (c) => INCIDENT_TYPES.includes(c.type) && c.type !== "ppe_violation"
     );
     classificationCache.set(cacheKey, { at: Date.now(), results: filtered });
     return filtered;
   } catch (e) {
-    console.error("[LLM-Classifier] Failed to parse response:", e);
+    const preview = text.length > 600 ? `${text.slice(0, 600)}…` : text;
+    console.error("[LLM-Classifier] Failed to parse response:", e, "\n[LLM-Classifier] Raw response preview:", preview);
     return [];
   }
 }
