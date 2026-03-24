@@ -23,6 +23,31 @@ The key is set via the `EDGE_API_KEY` environment variable on Vercel. Requests w
 
 ---
 
+## Canonical edge device ([MartinClare/edge](https://github.com/MartinClare/edge))
+
+The stock edge app sends **JSON only** (`Content-Type: application/json`) from `python/app/alarm_observer.py` → `_send_to_central_server`. Each POST includes:
+
+- `edgeCameraId`, `cameraName`, `timestamp` (UTC ISO string)
+- `analysis`: nested object with `overallDescription`, `overallRiskLevel`, `constructionSafety`, `fireSafety`, `propertySecurity`, `peopleCount`, `missingHardhats`, `missingVests`
+
+It does **not** send `messageType`, `keepalive`, or `eventImageIncluded` (CMP treats these as **analysis / not keepalive / no image**). It does **not** send JPEG evidence; optional multipart + image is supported for other clients.
+
+CMP accepts minor Gemini variance: risk level in any casing, partial safety objects, and optional `null` fields.
+
+### Heartbeat vs “analysis every N seconds”
+
+On **[MartinClare/edge](https://github.com/MartinClare/edge) `main`**, the Python service does **not** send a separate JSON field named “heartbeat” to the CMP. What you get instead is a **full analysis POST** on each Deep Vision cycle (`geminiInterval`), which still updates the camera’s **last report** time on the CMP — that behaves like a liveness signal.
+
+If your edge build **does** send explicit keepalives, CMP accepts any of the following (case-insensitive where noted):
+
+- `keepalive: true` (or string `"true"`)
+- `messageType`: `"keepalive"` or `"heartbeat"`
+- `type` or `eventType` (or `event_type`): `"heartbeat"` or `"keepalive"`
+
+Keepalive posts **do not** run LLM classification or alarm evaluation; they still create an `edge_reports` row and refresh the camera `online` / `last_report_at` state when valid.
+
+---
+
 ## Endpoint
 
 ### `POST /api/webhook/edge-report`
@@ -36,7 +61,7 @@ Receives a structured safety analysis report from an edge AI camera device.
 4. Runs LLM classification in the background (via OpenRouter / Gemini)
 5. Evaluates configured alarm rules and creates incidents if triggered
 6. Dispatches notifications if notification channels are configured
-7. Returns `202 Accepted` immediately — the edge device is not blocked
+7. Returns `200` JSON `{ "success": true }` immediately so the edge device is not blocked
 
 ---
 

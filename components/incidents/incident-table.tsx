@@ -22,6 +22,12 @@ type IncidentRow = {
   zone: { name: string };
   camera: { name: string };
   assignee: { name: string } | null;
+  evidence?: {
+    reportId: string;
+    imagePath: string | null;
+    riskLevel: string;
+    receivedAt: Date;
+  } | null;
 };
 
 function riskVariant(level: IncidentRiskLevel): "default" | "secondary" | "destructive" {
@@ -89,6 +95,7 @@ export function IncidentTable({ incidents }: { incidents: IncidentRow[] }) {
               <TableHead>Camera</TableHead>
               <TableHead>Zone</TableHead>
               <TableHead>Detected</TableHead>
+              <TableHead>Evidence</TableHead>
               <TableHead>Assigned</TableHead>
               <TableHead>Action</TableHead>
             </TableRow>
@@ -96,7 +103,7 @@ export function IncidentTable({ incidents }: { incidents: IncidentRow[] }) {
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                   No incidents found
                 </TableCell>
               </TableRow>
@@ -125,6 +132,20 @@ export function IncidentTable({ incidents }: { incidents: IncidentRow[] }) {
                 <TableCell>{incident.camera.name}</TableCell>
                 <TableCell>{incident.zone.name}</TableCell>
                 <TableCell className="text-xs">{formatHKT(incident.detectedAt)}</TableCell>
+                <TableCell>
+                  {incident.evidence?.imagePath ? (
+                    <Link href={`/incidents/${incident.id}`} className="block">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={incident.evidence.imagePath}
+                        alt="Incident evidence"
+                        className="h-12 w-20 rounded border object-cover"
+                      />
+                    </Link>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
                 <TableCell>{incident.assignee?.name ?? "—"}</TableCell>
                 <TableCell>
                   <IncidentActions incidentId={incident.id} currentStatus={incident.status} />

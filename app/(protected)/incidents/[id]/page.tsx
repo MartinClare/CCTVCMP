@@ -28,6 +28,49 @@ export default async function IncidentDetailPage({ params }: { params: { id: str
 
   if (!incident) notFound();
 
+  const evidenceBefore = await prisma.edgeReport.findFirst({
+    where: {
+      cameraId: incident.cameraId,
+      eventImagePath: { not: null },
+      receivedAt: { lte: incident.detectedAt },
+    },
+    select: {
+      id: true,
+      eventImagePath: true,
+      overallRiskLevel: true,
+      overallDescription: true,
+      receivedAt: true,
+    },
+    orderBy: { receivedAt: "desc" },
+  });
+
+  const evidenceAfter = await prisma.edgeReport.findFirst({
+    where: {
+      cameraId: incident.cameraId,
+      eventImagePath: { not: null },
+      receivedAt: { gte: incident.detectedAt },
+    },
+    select: {
+      id: true,
+      eventImagePath: true,
+      overallRiskLevel: true,
+      overallDescription: true,
+      receivedAt: true,
+    },
+    orderBy: { receivedAt: "asc" },
+  });
+
+  const evidence = (() => {
+    const candidates = [evidenceBefore, evidenceAfter].filter(Boolean) as Array<NonNullable<typeof evidenceBefore>>;
+    if (candidates.length === 0) return null;
+    const nearest = candidates.sort((a, b) =>
+      Math.abs(a.receivedAt.getTime() - incident.detectedAt.getTime()) -
+      Math.abs(b.receivedAt.getTime() - incident.detectedAt.getTime())
+    )[0];
+    const diffMs = Math.abs(nearest.receivedAt.getTime() - incident.detectedAt.getTime());
+    return diffMs <= 2 * 60 * 60 * 1000 ? nearest : null;
+  })();
+
   const riskColor = incident.riskLevel === "critical" || incident.riskLevel === "high"
     ? "destructive" as const
     : "secondary" as const;
@@ -80,6 +123,42 @@ export default async function IncidentDetailPage({ params }: { params: { id: str
         <CardHeader><CardTitle className="text-sm">Notes</CardTitle></CardHeader>
         <CardContent>
           <IncidentNotes incidentId={incident.id} currentNotes={incident.notes} />
+        </CardContent>
+      </Card>
+
+      {/* Evidence */}
+      <Card>
+        <CardHeader><CardTitle className="text-sm">Evidence Image</CardTitle></CardHeader>
+        <CardContent>
+          {evidence?.eventImagePath ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={
+                    evidence.overallRiskLevel === "High" || evidence.overallRiskLevel === "Critical"
+                      ? "destructive"
+                      : evidence.overallRiskLevel === "Medium"
+                      ? "default"
+                      : "secondary"
+                  }
+                >
+                  {evidence.overallRiskLevel}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  Captured: {formatHKT(evidence.receivedAt)}
+                </span>
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={evidence.eventImagePath}
+                alt="Incident evidence"
+                className="max-h-[420px] w-full rounded border object-contain"
+              />
+              <p className="text-sm text-muted-foreground">{evidence.overallDescription}</p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No evidence image available for this incident.</p>
+          )}
         </CardContent>
       </Card>
 

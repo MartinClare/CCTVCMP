@@ -114,7 +114,9 @@ export async function POST(request: NextRequest) {
     analysis,
   } = parsed.data;
 
-  if (eventImageIncluded && !parsedBody.image) {
+  // MartinClare/edge sends JSON only (no multipart). Only reject if client explicitly
+  // claims an image without uploading one.
+  if (eventImageIncluded === true && !parsedBody.image) {
     return NextResponse.json(
       { message: "eventImageIncluded=true but multipart image file is missing" },
       { status: 400 }
