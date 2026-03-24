@@ -20,6 +20,12 @@ export default async function IncidentsPage({
 
   const statusParam = typeof params.status === "string" ? params.status : undefined;
   const riskParam = typeof params.riskLevel === "string" ? params.riskLevel : undefined;
+  const edgeImageParam = typeof params.edgeImage === "string" ? params.edgeImage : "all";
+  const edgePageParam = typeof params.edgePage === "string" ? Number(params.edgePage) : 1;
+  const edgeImageFilter: "all" | "with" | "without" =
+    edgeImageParam === "with" || edgeImageParam === "without" ? edgeImageParam : "all";
+  const edgePage = Number.isFinite(edgePageParam) && edgePageParam > 0 ? Math.floor(edgePageParam) : 1;
+  const EDGE_PAGE_SIZE = 20;
 
   const statusFilter = statusParam
     ?.split(",")
@@ -95,12 +101,23 @@ export default async function IncidentsPage({
     return { ...incident, evidence };
   });
 
+  const edgeRiskWhere = {
+    messageType: "analysis" as const,
+    keepalive: false,
+    overallRiskLevel: { in: ["Medium", "High", "Critical"] as Array<"Medium" | "High" | "Critical"> },
+    ...(edgeImageFilter === "with" ? { eventImagePath: { not: null as string | null } } : {}),
+    ...(edgeImageFilter === "without" ? { eventImagePath: null as string | null } : {}),
+  };
+
+  const totalEdgeRiskRecords = await prisma.edgeReport.count({ where: edgeRiskWhere });
+  const totalEdgePages = Math.max(1, Math.ceil(totalEdgeRiskRecords / EDGE_PAGE_SIZE));
+  const safeEdgePage = Math.min(edgePage, totalEdgePages);
+
   const recentEdgeRiskReports = await prisma.edgeReport.findMany({
-    take: 20,
+    skip: (safeEdgePage - 1) * EDGE_PAGE_SIZE,
+    take: EDGE_PAGE_SIZE,
     where: {
-      messageType: "analysis",
-      keepalive: false,
-      overallRiskLevel: { in: ["Medium", "High", "Critical"] },
+      ...edgeRiskWhere,
     },
     select: {
       id: true,
@@ -121,6 +138,8 @@ export default async function IncidentsPage({
         where: {
           messageType: "analysis",
           keepalive: false,
+          ...(edgeImageFilter === "with" ? { eventImagePath: { not: null } } : {}),
+          ...(edgeImageFilter === "without" ? { eventImagePath: null } : {}),
         },
         select: {
           id: true,
@@ -133,6 +152,9 @@ export default async function IncidentsPage({
         },
         orderBy: { receivedAt: "desc" },
       });
+
+  const edgeListQuery = (filter: "all" | "with" | "without", page: number) =>
+    `/incidents?edgeImage=${filter}&edgePage=${page}`;
 
   const filterLabel = [
     statusFilter?.length ? `Status: ${statusFilter.join(", ")}` : null,
@@ -162,7 +184,31 @@ export default async function IncidentsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Edge Risk Records</CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle>Edge Risk Records</CardTitle>
+            <div className="flex items-center gap-2 text-sm">
+              <Link
+                href={edgeListQuery("all", 1)}
+                className={edgeImageFilter === "all" ? "font-semibold text-primary" : "text-muted-foreground hover:text-foreground"}
+              >
+                All
+              </Link>
+              <span className="text-muted-foreground">|</span>
+              <Link
+                href={edgeListQuery("with", 1)}
+                className={edgeImageFilter === "with" ? "font-semibold text-primary" : "text-muted-foreground hover:text-foreground"}
+              >
+                With image
+              </Link>
+              <span className="text-muted-foreground">|</span>
+              <Link
+                href={edgeListQuery("without", 1)}
+                className={edgeImageFilter === "without" ? "font-semibold text-primary" : "text-muted-foreground hover:text-foreground"}
+              >
+                Without image
+              </Link>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <p className="mb-3 text-sm text-muted-foreground">
@@ -249,6 +295,34 @@ export default async function IncidentsPage({
               ))}
             </TableBody>
           </Table>
+
+          {recentEdgeRiskReports.length > 0 && (
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <p className="text-muted-foreground">
+                Showing {(safeEdgePage - 1) * EDGE_PAGE_SIZE + 1}-
+                {Math.min(safeEdgePage * EDGE_PAGE_SIZE, totalEdgeRiskRecords)} of {totalEdgeRiskRecords} records
+              </p>
+              <div className="flex items-center gap-3">
+                {safeEdgePage > 1 ? (
+                  <Link href={edgeListQuery(edgeImageFilter, safeEdgePage - 1)} className="text-primary hover:underline">
+                    Previous
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">Previous</span>
+                )}
+                <span className="text-muted-foreground">
+                  Page {safeEdgePage} / {totalEdgePages}
+                </span>
+                {safeEdgePage < totalEdgePages ? (
+                  <Link href={edgeListQuery(edgeImageFilter, safeEdgePage + 1)} className="text-primary hover:underline">
+                    Next
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">Next</span>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
