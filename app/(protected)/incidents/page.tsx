@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatHKT } from "@/lib/utils";
+import Link from "next/link";
 
 const VALID_STATUSES: IncidentStatus[] = ["open", "acknowledged", "resolved", "dismissed", "record_only"];
 const VALID_RISKS: IncidentRiskLevel[] = ["low", "medium", "high", "critical"];
@@ -190,12 +191,13 @@ export default async function IncidentsPage({
                 <TableHead>Description</TableHead>
                 <TableHead>Timestamp</TableHead>
                 <TableHead>Evidence</TableHead>
+                <TableHead>Details</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {recentEdgeReports.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     No edge event records found
                   </TableCell>
                 </TableRow>
@@ -208,19 +210,40 @@ export default async function IncidentsPage({
                       {report.overallRiskLevel}
                     </Badge>
                   </TableCell>
-                  <TableCell className="max-w-xl truncate">{report.overallDescription}</TableCell>
+                  <TableCell className="max-w-xl">
+                    <details className="group">
+                      <summary className="cursor-pointer list-none text-sm text-foreground/90">
+                        <span className="group-open:hidden block truncate">
+                          {report.overallDescription || "—"}
+                        </span>
+                        <span className="hidden group-open:block font-medium text-primary">
+                          Hide details
+                        </span>
+                      </summary>
+                      <div className="mt-2 rounded-md border bg-muted/30 p-3 text-sm leading-6 text-foreground whitespace-pre-wrap">
+                        {report.overallDescription || "No description"}
+                      </div>
+                    </details>
+                  </TableCell>
                   <TableCell className="text-xs">{formatHKT(report.eventTimestamp ?? report.receivedAt)}</TableCell>
                   <TableCell>
                     {report.eventImagePath ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={report.eventImagePath}
-                        alt="Edge event evidence"
-                        className="h-12 w-20 rounded border object-cover"
-                      />
+                      <Link href={`/incidents/edge-report/${report.id}`} className="block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={report.eventImagePath}
+                          alt="Edge event evidence"
+                          className="h-12 w-20 rounded border object-cover"
+                        />
+                      </Link>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <Link href={`/incidents/edge-report/${report.id}`} className="text-sm text-primary hover:underline">
+                      View
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}
