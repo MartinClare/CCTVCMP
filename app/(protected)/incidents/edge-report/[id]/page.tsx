@@ -120,7 +120,7 @@ export default async function EdgeReportDetailPage({ params }: Props) {
             <CardTitle className="text-sm">Construction Safety</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="text-xs whitespace-pre-wrap overflow-auto">{prettyJson(report.constructionSafety)}</pre>
+            <SafetyReportSection data={report.constructionSafety} />
           </CardContent>
         </Card>
         <Card>
@@ -128,7 +128,7 @@ export default async function EdgeReportDetailPage({ params }: Props) {
             <CardTitle className="text-sm">Fire Safety</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="text-xs whitespace-pre-wrap overflow-auto">{prettyJson(report.fireSafety)}</pre>
+            <SafetyReportSection data={report.fireSafety} />
           </CardContent>
         </Card>
         <Card>
@@ -136,29 +136,10 @@ export default async function EdgeReportDetailPage({ params }: Props) {
             <CardTitle className="text-sm">Property Security</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="text-xs whitespace-pre-wrap overflow-auto">{prettyJson(report.propertySecurity)}</pre>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Counts</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <Row label="People Count" value={report.peopleCount?.toString() ?? "—"} />
-            <Row label="Missing Hardhats" value={report.missingHardhats?.toString() ?? "—"} />
-            <Row label="Missing Vests" value={report.missingVests?.toString() ?? "—"} />
+            <SafetyReportSection data={report.propertySecurity} />
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Raw Payload</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="text-xs whitespace-pre-wrap overflow-auto">{prettyJson(report.rawJson)}</pre>
-        </CardContent>
-      </Card>
 
       <div>
         <Link href="/incidents" className="text-sm text-primary hover:underline">
@@ -174,6 +155,62 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex items-start justify-between gap-3">
       <span className="text-muted-foreground">{label}</span>
       <span className="text-right break-all">{value}</span>
+    </div>
+  );
+}
+
+type SafetyData = {
+  summary: string;
+  issues: string[];
+  recommendations: string[];
+};
+
+function normalizeSafetyData(value: unknown): SafetyData {
+  if (!value || typeof value !== "object") {
+    return { summary: "No data provided.", issues: [], recommendations: [] };
+  }
+  const obj = value as Record<string, unknown>;
+  return {
+    summary: typeof obj.summary === "string" && obj.summary.trim() ? obj.summary : "No summary provided.",
+    issues: Array.isArray(obj.issues) ? obj.issues.filter((x): x is string => typeof x === "string") : [],
+    recommendations: Array.isArray(obj.recommendations)
+      ? obj.recommendations.filter((x): x is string => typeof x === "string")
+      : [],
+  };
+}
+
+function SafetyReportSection({ data }: { data: unknown }) {
+  const s = normalizeSafetyData(data);
+  return (
+    <div className="space-y-3 text-sm">
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Summary</p>
+        <p className="mt-1 whitespace-pre-wrap">{s.summary}</p>
+      </div>
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Issues</p>
+        {s.issues.length > 0 ? (
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {s.issues.map((item, idx) => (
+              <li key={idx}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-muted-foreground">No issues reported.</p>
+        )}
+      </div>
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Recommendations</p>
+        {s.recommendations.length > 0 ? (
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {s.recommendations.map((item, idx) => (
+              <li key={idx}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-muted-foreground">No recommendations provided.</p>
+        )}
+      </div>
     </div>
   );
 }
