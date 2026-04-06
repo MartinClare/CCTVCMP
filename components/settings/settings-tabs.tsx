@@ -168,7 +168,7 @@ function AlarmRulesTab({ rules }: { rules: AlarmRule[] }) {
 function NotificationChannelsTab({ channels }: { channels: Channel[] }) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
-  const [type, setType] = useState<"email" | "webhook" | "dashboard">("dashboard");
+  const [type, setType] = useState<"email" | "webhook" | "dashboard" | "mobile_push">("dashboard");
   const [saving, setSaving] = useState(false);
   const [testingId, setTestingId] = useState<string | null>(null);
 
@@ -186,10 +186,14 @@ function NotificationChannelsTab({ channels }: { channels: Channel[] }) {
 
   async function createChannel() {
     setSaving(true);
+    const config =
+      type === "mobile_push"
+        ? { targetRoles: ["admin", "project_manager", "safety_officer"] }
+        : {};
     await fetch("/api/notification-channels", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, type, config: {} }),
+      body: JSON.stringify({ name, type, config }),
     });
     setSaving(false);
     setCreating(false);
@@ -218,7 +222,8 @@ function NotificationChannelsTab({ channels }: { channels: Channel[] }) {
           <div>
             <CardTitle className="text-lg">Notification Channels</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Configure where incident alerts are sent. Dashboard notifications are always available.
+              Configure where incident alerts are sent. Mobile push only fires for incidents that pass each
+              channel&apos;s minimum risk level (same as email/webhook).
             </p>
           </div>
           <Button size="sm" onClick={() => setCreating(!creating)}>
@@ -243,6 +248,7 @@ function NotificationChannelsTab({ channels }: { channels: Channel[] }) {
                 <option value="dashboard">Dashboard</option>
                 <option value="email">Email</option>
                 <option value="webhook">Webhook</option>
+                <option value="mobile_push">Mobile push (FCM)</option>
               </select>
             </div>
             <Button onClick={createChannel} disabled={saving || !name}>

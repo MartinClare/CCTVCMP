@@ -14,6 +14,7 @@ export const routeRoleMap: Record<string, Role[]> = {
   "/api/edge-reports": [Role.admin, Role.project_manager, Role.safety_officer, Role.viewer],
   "/api/alarm-rules": [Role.admin, Role.project_manager],
   "/api/notification-channels": [Role.admin, Role.project_manager],
+  "/api/auth/fcm-token": [Role.admin, Role.project_manager, Role.safety_officer, Role.viewer],
   "/api/projects": [Role.admin, Role.project_manager],
   "/api/users": [Role.admin],
   "/api/analytics": [Role.admin, Role.project_manager, Role.safety_officer, Role.viewer],

@@ -3,6 +3,7 @@ import { getCurrentUserFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/notifications/email";
 import { sendWebhook } from "@/lib/notifications/webhook";
+import { sendFcmPush } from "@/lib/notifications/fcm";
 
 /**
  * POST /api/notification-channels/[id]/test
@@ -59,6 +60,9 @@ export async function POST(request: NextRequest, context: { params: { id: string
         break;
       case "webhook":
         await sendWebhook(channel.config as Record<string, unknown>, testIncident);
+        break;
+      case "mobile_push":
+        await sendFcmPush(testIncident, channel.config as Record<string, unknown>);
         break;
       case "dashboard":
         break;
