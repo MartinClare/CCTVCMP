@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { Incident, IncidentRiskLevel } from "@prisma/client";
 import { sendEmail } from "@/lib/notifications/email";
 import { sendWebhook } from "@/lib/notifications/webhook";
+import { sendFcmPush } from "@/lib/notifications/fcm";
 
 const RISK_ORDER: Record<IncidentRiskLevel, number> = {
   low: 0,
@@ -50,6 +51,14 @@ export async function dispatchNotifications(incident: IncidentWithRelations): Pr
         case "webhook":
           await sendWebhook(channel.config as Record<string, unknown>, incident);
           break;
+        case "mobile_push": {
+          const cfg = channel.config as Record<string, unknown>;
+          const targetRoles = Array.isArray(cfg.targetRoles)
+            ? (cfg.targetRoles as string[])
+            : ["admin", "project_manager", "safety_officer"];
+          await sendFcmPush(incident, targetRoles);
+          break;
+        }
         case "dashboard":
           break;
       }

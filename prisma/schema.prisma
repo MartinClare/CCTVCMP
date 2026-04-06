@@ -61,6 +61,7 @@ enum ChannelType {
   email
   webhook
   dashboard
+  mobile_push
 }
 
 model User {
@@ -72,10 +73,25 @@ model User {
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
-  assignedIncidents Incident[]   @relation("IncidentAssignee")
+  assignedIncidents Incident[]     @relation("IncidentAssignee")
   incidentLogs      IncidentLog[]
+  fcmTokens         UserFcmToken[]
 
   @@map("users")
+}
+
+model UserFcmToken {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  token      String   @unique
+  deviceName String?  @map("device_name")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_fcm_tokens")
 }
 
 model Project {

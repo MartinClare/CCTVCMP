@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(head -50 /d/development/CCTVCMP/.claude/worktrees/gracious-dubinsky/app/\\\\\\(protected\\\\\\)/dashboard/page.tsx)",
+      "Bash(find /d/development/CCTVCMP/.claude/worktrees/gracious-dubinsky -type d -not -path */node_modules/* -not -path */.next/* -not -path */.git/*)",
+      "Bash(npm install:*)"
+    ]
+  }
+}
